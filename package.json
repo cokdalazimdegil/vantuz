@@ -1,91 +1,87 @@
 {
-    "name":  "vantuz",
-    "version":  "3.3.1",
-    "description":  "Yapay Zeka Destekli E-Ticaret Yönetim Platformu - 7 Pazaryeri + WhatsApp/Telegram",
-    "type":  "module",
-    "main":  "cli.js",
-    "bin":  {
-                "vantuz":  "cli.js",
-                "vantuz-onboard":  "onboard.js"
-            },
-    "scripts":  {
-                    "start":  "node cli.js tui",
-                    "tui":  "node cli.js tui",
-                    "config":  "node cli.js config",
-                    "status":  "node cli.js status",
-                    "onboard":  "node onboard.js",
-                    "postinstall":  "echo \u0027🐙 Vantuz kuruldu! Başlatmak için: npx vantuz-onboard\u0027",
-                    "test":  "node --test",
-                    "lint":  "eslint plugins/"
-                },
-    "keywords":  [
-                     "ecommerce",
-                     "e-ticaret",
-                     "trendyol",
-                     "hepsiburada",
-                     "amazon",
-                     "n11",
-                     "ciceksepeti",
-                     "pttavm",
-                     "pazarama",
-                     "marketplace",
-                     "pazaryeri",
-                     "ai",
-                     "yapay-zeka",
-                     "repricer",
-                     "fiyatlama",
-                     "whatsapp",
-                     "telegram",
-                     "enterprise",
-                     "gateway",
-                     "management",
-                     "cli"
-                 ],
-    "author":  {
-                   "name":  "Nuri Can Avşar",
-                   "email":  "nuricanavsar2000@gmail.com"
-               },
-    "license":  "SEE LICENSE IN LICENSE",
-    "repository":  {
-                       "type":  "git",
-                       "url":  "git+https://github.com/nuricanavsar/vantuz.git"
-                   },
-    "homepage":  "https://vantuz.ai",
-    "bugs":  {
-                 "url":  "https://github.com/nuricanavsar/vantuz/issues"
-             },
-    "dependencies":  {
-                         "axios":  "^1.13.5",
-                         "cors":  "^2.8.6",
-                         "cron":  "^4.4.0",
-                         "dotenv":  "^16.0.0",
-                         "express":  "^5.2.1",
-                         "openclaw":  "^2026.2.9",
-                         "playwright":  "^1.58.2",
-                         "sqlite3":  "^5.1.7",
-                         "xml2js":  "^0.6.2"
-                     },
-    "devDependencies":  {
-                            "eslint":  "^8.0.0"
-                        },
-    "os":  [
-               "darwin",
-               "linux",
-               "win32"
-           ],
-    "engines":  {
-                    "node":  "\u003e=18.0.0"
-                },
-    "files":  [
-                  "cli.js",
-                  "onboard.js",
-                  "core",
-                  "server",
-                  "platforms",
-                  "plugins",
-                  ".openclaw",
-                  "LICENSE",
-                  "README.md",
-                  "DOCS_TR.md"
-              ]
+    "name": "vantuz",
+    "version": "3.3.1",
+    "description": "Yapay Zeka Destekli E-Ticaret Yönetim Platformu - 7 Pazaryeri + WhatsApp/Telegram",
+    "type": "module",
+    "main": "cli.js",
+    "bin": {
+        "vantuz": "cli.js",
+        "vantuz-onboard": "onboard.js"
+    },
+    "scripts": {
+        "start": "node cli.js tui",
+        "tui": "node cli.js tui",
+        "config": "node cli.js config",
+        "status": "node cli.js status",
+        "onboard": "node onboard.js",
+        "postinstall": "echo '🐙 Vantuz kuruldu! Başlatmak için: npx vantuz-onboard'",
+        "test": "node --test",
+        "lint": "eslint plugins/"
+    },
+    "keywords": [
+        "ecommerce",
+        "e-ticaret",
+        "trendyol",
+        "hepsiburada",
+        "amazon",
+        "n11",
+        "ciceksepeti",
+        "pttavm",
+        "pazarama",
+        "marketplace",
+        "pazaryeri",
+        "ai",
+        "yapay-zeka",
+        "repricer",
+        "fiyatlama",
+        "whatsapp",
+        "telegram",
+        "enterprise",
+        "gateway",
+        "management",
+        "cli"
+    ],
+    "author": "Vantuz",
+    "license": "SEE LICENSE IN LICENSE",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/nuricanavsar/vantuz.git"
+    },
+    "homepage": "https://vantuz.ai",
+    "bugs": {
+        "url": "https://github.com/nuricanavsar/vantuz/issues"
+    },
+    "dependencies": {
+        "axios": "^1.13.5",
+        "cors": "^2.8.6",
+        "cron": "^4.4.0",
+        "dotenv": "^16.0.0",
+        "express": "^5.2.1",
+        "openclaw": "^0.0.1",
+        "playwright": "^1.58.2",
+        "sqlite": "^5.1.1",
+        "sqlite3": "^5.0.2",
+        "xml2js": "^0.6.2"
+    },
+    "devDependencies": {
+        "eslint": "^8.0.0"
+    },
+    "os": [
+        "darwin",
+        "linux",
+        "win32"
+    ],
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "files": [
+        "cli.js",
+        "onboard.js",
+        "core",
+        "server",
+        "platforms",
+        "plugins",
+        "LICENSE",
+        "README.md"
+    ]
 }

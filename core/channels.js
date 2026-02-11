@@ -1,6 +1,6 @@
 /**
  * 📱 CHANNEL MANAGER v3.2
- * OpenClaw Gateway üzerinden kanal yönetimi
+ * Gateway üzerinden kanal yönetimi
  * 
  * Desteklenen kanallar:
  * - WhatsApp (Meta Business API / Gateway)
@@ -31,7 +31,7 @@ export class ChannelManager {
     async initAll() {
         const env = this._loadEnv();
 
-        // OpenClaw Gateway üzerinden kanal durumu kontrol et
+        // Gateway üzerinden kanal durumu kontrol et
         try {
             this.gateway = await getGateway();
 

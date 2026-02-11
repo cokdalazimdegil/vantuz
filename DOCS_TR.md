@@ -15,11 +15,11 @@
 
 ## Mimari
 
-Vantuz, **OpenClaw Gateway** üzerine inşa edilmiş bir plugin sistemidir.
+Vantuz, **Gateway altyapısı** üzerine inşa edilmiş bir plugin sistemidir.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    OpenClaw Gateway                         │
+│                    Gateway                                  │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
 │  │ WhatsApp │  │ Telegram │  │ Discord  │                  │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘                  │
@@ -196,7 +196,7 @@ SQLite tabanlı gelişmiş hafıza sistemi.
 
 ## Yapılandırma
 
-### .openclaw/openclaw.json
+### Gateway yapılandırma dosyası
 
 ```json
 {

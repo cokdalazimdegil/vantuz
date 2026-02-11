@@ -11,6 +11,9 @@ generate-licenses.js
 node_modules/
 .git/
 .gitignore
+.openclaw/
+.cursor/
+.windsurf/
 
 # IDE
 .vscode/

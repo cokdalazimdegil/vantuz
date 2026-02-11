@@ -12,6 +12,7 @@ import readline from 'readline';
 import { log, getLogs, clearLogs } from './core/ai-provider.js';
 import { getEngine } from './core/engine.js';
 import { getGateway } from './core/gateway.js';
+import { Configurator } from './config.js'; // Import the new Configurator
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIG
@@ -75,6 +76,40 @@ function clearScreen() {
     process.stdout.write('\x1Bc');
 }
 
+async function promptInput(question) {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const answer = await new Promise(resolve => rl.question(question, resolve));
+    rl.close();
+    return answer.trim();
+}
+
+function normalizePhone(input) {
+    if (!input) return '';
+    const cleaned = input.replace(/[\s-]/g, '');
+    return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
+}
+
+function loadOpenclawConfig(configPath) {
+    try {
+        if (fs.existsSync(configPath)) {
+            return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        }
+    } catch (e) {
+        console.log(c('red', `Gateway config okunamadı: ${e.message}`));
+    }
+    return {};
+}
+
+function saveOpenclawConfig(configPath, config) {
+    try {
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        return true;
+    } catch (e) {
+        console.log(c('red', `Gateway config yazılamadı: ${e.message}`));
+        return false;
+    }
+}
+
 function printHeader() {
     const version = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url))).version;
     console.log(c('cyan', `
@@ -86,7 +121,7 @@ function printHeader() {
       ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚══════╝
     `));
     console.log(c('magenta', `    Enterprise E-Commerce Management System v${version}`));
-    console.log(c('dim', '    Powered by Vantuz AI Gateway'));
+    console.log(c('dim', '    Powered by Vantuz Gateway'));
     console.log(c('dim', '    ----------------------------------------------------------\n'));
 }
 
@@ -170,12 +205,29 @@ async function runTUI() {
                                 });
                             });
                             break;
+                        case '/analiz':
+                            process.stdout.write(c('dim', 'Analiz hazırlanıyor... '));
+                            const analysis = await engine.chat('satış ve stok analiz raporu hazırla');
+                            process.stdout.write('\r' + ' '.repeat(30) + '\r');
+                            console.log(`\n${analysis}\n`);
+                            break;
                         case '/siparis':
                             console.log(c('dim', 'Siparişler çekiliyor...'));
-                            const orders = await engine.getOrders({ size: 5 });
-                            if (orders.length === 0) console.log(c('yellow', 'Son sipariş bulunamadı.'));
-                            orders.forEach(o => {
-                                console.log(`${o._icon} [#${o.orderNumber || o.id}] ${c('bold', o.customerName || 'Müşteri')}: ${c('green', o.totalPrice || o.total)} TL (${o._platform})`);
+                            const orders = await engine.getOrders({ size: 50, allStatuses: true });
+                            const activeOrders = Array.isArray(orders)
+                                ? orders.filter(o => ['Created', 'Picking', 'UnPacked'].includes(String(o.status || o.shipmentPackageStatus || o.orderStatus)))
+                                : [];
+                            const visible = activeOrders.slice(0, 5);
+                            if (!Array.isArray(orders) || visible.length === 0) {
+                                console.log(c('yellow', 'Son sipariş bulunamadı.'));
+                                break;
+                            }
+                            visible.forEach(o => {
+                                const names = Array.isArray(o.lines)
+                                    ? o.lines.map(l => l?.productName || l?.name).filter(Boolean)
+                                    : [];
+                                const namePart = names.length > 0 ? ` | ${names.join(', ')}` : '';
+                                console.log(`${o._icon} [#${o.orderNumber || o.id}] ${c('bold', o.customerName || 'Müşteri')}: ${c('green', o.totalPrice ?? o.totalAmount ?? o.total ?? '—')} TL (${o._platform})${namePart}`);
                             });
                             break;
                         case '/durum':
@@ -192,7 +244,7 @@ async function runTUI() {
                     }
                 } else {
                     process.stdout.write(c('dim', 'Düşünüyor... '));
-                    const response = await engine.chat(input);
+                    const response = await engine.handleMessage(input, { channel: 'local', from: 'local' });
                     process.stdout.write('\r' + ' '.repeat(20) + '\r');
                     console.log(`\n${c('cyan', '🐙 Vantuz:')}\n${response}\n`);
                 }
@@ -206,11 +258,23 @@ async function runTUI() {
 
 async function runConfig(args) {
     const sub = args[1]?.toLowerCase();
-    const config = loadConfigJson();
+    const config = loadConfigJson(); // config.json operations
 
-    if (!sub || sub === 'get') {
+    if (sub === 'init') {
+        const configurator = new Configurator();
+        await configurator.run();
+        return;
+    }
+
+    if (sub === 'init' || !sub) { // If sub is 'init' OR no sub-command is provided
+        const configurator = new Configurator();
+        await configurator.run();
+        return; // IMPORTANT: Return after running the configurator
+    }
+
+    if (sub === 'get') { // Handle 'get' sub-command
         printHeader();
-        if (sub === 'get' && args[2]) {
+        if (args[2]) {
             const key = args[2];
             const value = config?.[key];
             console.log(value === undefined ? '' : String(value));
@@ -238,7 +302,7 @@ async function runConfig(args) {
         return;
     }
 
-    console.log(c('red', 'Geçersiz config komutu. Kullanım: vantuz config [get [key] | set <key> <value>]'));
+    console.log(c('red', 'Geçersiz config komutu. Kullanım: vantuz config [init | get [key] | set <key> <value>]'));
     process.exitCode = 2;
 }
 
@@ -313,26 +377,13 @@ async function runGateway(args) {
 
     if (sub === 'run' || sub === 'start') {
         console.log(c('cyan', 'Gateway başlatılıyor...'));
-        const gatewayCmd = path.join(process.cwd(), '.openclaw', 'gateway.cmd');
-
-        if (fs.existsSync(gatewayCmd)) {
-            try {
-                const { spawn } = await import('child_process');
-                const child = spawn(gatewayCmd, [], {
-                    detached: true,
-                    stdio: 'ignore', // Arka planda sessizce çalışsın
-                    shell: true      // Windows için gerekli
-                });
-                child.unref(); // Parent process'ten ayır
-
-                console.log(c('green', '✔ Gateway arka planda başlatıldı.'));
-                console.log(c('dim', 'Birkaç saniye içinde hazır olacak.'));
-                console.log(c('dim', 'Kontrol için: vantuz gateway status'));
-            } catch (e) {
-                console.log(c('red', `Başlatma hatası: ${e.message}`));
-            }
+        const result = await gw.start();
+        if (result.success) {
+            console.log(c('green', '✔ Gateway arka planda başlatıldı.'));
+            console.log(c('dim', 'Birkaç saniye içinde hazır olacak.'));
+            console.log(c('dim', 'Kontrol için: vantuz gateway status'));
         } else {
-            console.log(c('red', 'Gateway başlatma dosyası bulunamadı: .openclaw/gateway.cmd'));
+            console.log(c('red', result.error || 'Gateway başlatılamadı'));
         }
         return;
     }
@@ -386,6 +437,69 @@ async function runDoctor() {
 }
 
 async function runChannels(args) {
+    const sub = args[1]?.toLowerCase();
+    if (sub === 'login') {
+        printHeader();
+        console.log(c('yellow', '── WhatsApp Login ──\n'));
+
+        const openclawDir = path.join(os.homedir(), '.openclaw');
+        const configPath = path.join(openclawDir, 'openclaw.json');
+
+        if (!fs.existsSync(openclawDir)) {
+            fs.mkdirSync(openclawDir, { recursive: true });
+        }
+
+        const rawPhone = await promptInput('WhatsApp numaranız (E.164, örn: +905551112233): ');
+        const phone = normalizePhone(rawPhone);
+        if (!phone || phone === '+') {
+            console.log(c('red', 'Geçerli bir numara girilmedi.'));
+            process.exitCode = 2;
+            return;
+        }
+
+        const config = loadOpenclawConfig(configPath);
+        if (!config.channels) config.channels = {};
+        if (!config.channels.whatsapp) config.channels.whatsapp = {};
+
+        if (!config.channels.whatsapp.dmPolicy) {
+            config.channels.whatsapp.dmPolicy = 'allowlist';
+        }
+
+        const allowFrom = Array.isArray(config.channels.whatsapp.allowFrom)
+            ? config.channels.whatsapp.allowFrom
+            : [];
+        if (!allowFrom.includes(phone)) {
+            allowFrom.push(phone);
+        }
+        config.channels.whatsapp.allowFrom = allowFrom;
+
+        const saved = saveOpenclawConfig(configPath, config);
+        if (!saved) {
+            process.exitCode = 1;
+            return;
+        }
+
+        console.log(c('green', '✔ Gateway config güncellendi.'));
+        console.log(c('dim', 'Şimdi QR için login başlatılıyor...\n'));
+
+        try {
+            const { spawn } = await import('child_process');
+            const child = spawn('openclaw', ['channels', 'login'], {
+                stdio: 'inherit',
+                shell: true
+            });
+            await new Promise((resolve, reject) => {
+                child.on('exit', code => (code === 0 ? resolve() : reject(new Error(`gateway exit ${code}`))));
+                child.on('error', reject);
+            });
+            console.log(c('green', '\n✔ QR eşleştirme tamamlandı.'));
+            console.log(c('dim', 'Gateway başlatmak için: vantuz gateway run'));
+        } catch (e) {
+            console.log(c('red', `Login çalıştırılamadı: ${e.message}`));
+        }
+        return;
+    }
+
     printHeader();
     console.log(c('yellow', '── İletişim Kanalları ──\n'));
 
@@ -460,9 +574,10 @@ async function main() {
             console.log(`  ${c('cyan', 'vantuz gateway')}   - Gateway yönetimi`);
             console.log(`  ${c('cyan', 'vantuz doctor')}    - Sistem sağlık kontrolü`);
             console.log(`  ${c('cyan', 'vantuz channels')}  - İletişim kanalları`);
+            console.log(`  ${c('cyan', 'vantuz channels login')}  - WhatsApp QR login`);
             console.log(`  ${c('cyan', 'vantuz config')}    - Ayarları göster/güncelle`);
             console.log(`  ${c('cyan', 'vantuz logs')}      - Logları göster`);
-            console.log(`\nKurulum için: ${c('cyan', 'vantuz-onboard')}`);
+            console.log(`\nKurulum ve başlangıç ayarları için: ${c('cyan', 'vantuz config init')}`);
             process.exitCode = command ? 2 : 0;
     }
 }

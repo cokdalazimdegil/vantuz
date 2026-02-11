@@ -18,6 +18,9 @@ import { getChannelManager } from './channels.js';
 import { chat as aiChat, log } from './ai-provider.js';
 import { getGateway } from './gateway.js';
 import { getEIAMonitor } from './eia-monitor.js'; // New import
+import AutomationManager from './automation.js';
+import OpenClawBridge from './openclaw-bridge.js';
+import { executeTool } from './agent.js';
 
 // Tools
 import { repricerTool } from '../plugins/vantuz/tools/repricer.js';
@@ -91,6 +94,8 @@ export class VantuzEngine {
             connectedPlatforms: []
         };
         this.eiaMonitor = null; // New property
+        this.automation = null;
+        this.bridge = null;
 
         // Tool Registry
         this.tools = {
@@ -119,6 +124,13 @@ export class VantuzEngine {
             this.gateway = await getGateway();
             if (this.gateway.isConnected()) {
                 log('INFO', 'Vantuz Gateway bağlı', this.gateway.getInfo());
+            } else if (this._shouldAutoStartGateway()) {
+                const started = await this.gateway.ensureRunning();
+                if (started.success) {
+                    log('INFO', 'Vantuz Gateway otomatik başlatıldı', this.gateway.getInfo());
+                } else {
+                    log('WARN', 'Gateway otomatik başlatılamadı', { error: started.error });
+                }
             }
         } catch (e) {
             log('WARN', 'Gateway bağlantısı başarısız, direkt mod', { error: e.message });
@@ -137,6 +149,20 @@ export class VantuzEngine {
         this.eiaMonitor = getEIAMonitor(this.config, this.env);
         await this.eiaMonitor.initMonitoringTasks(); // New line
 
+        // Automation manager
+        this.automation = new AutomationManager(this);
+        this.automation.init();
+
+        // Gateway WS bridge (inbound)
+        if (this._shouldStartBridge()) {
+            try {
+                this.bridge = new OpenClawBridge(this, this.gateway);
+                this.bridge.start();
+            } catch (e) {
+                log('WARN', 'Gateway bridge başlatılamadı', { error: e.message });
+            }
+        }
+
         this.initialized = true;
         log('INFO', 'Vantuz Engine hazır', {
             platforms: this.context.connectedPlatforms.length,
@@ -144,6 +170,45 @@ export class VantuzEngine {
         });
 
         return this;
+    }
+
+    /**
+     * Gelişmiş mesaj işleme (otomasyon + onay)
+     */
+    async handleMessage(message, meta = { channel: 'local', from: 'local' }) {
+        if (!this.initialized) await this.initialize();
+        if (this.automation) {
+            const result = await this.automation.handleMessage(message, meta);
+            if (result?.handled) {
+                return result.response;
+            }
+        }
+        return await this.chat(message);
+    }
+
+    /**
+     * Gateway otomatik başlatılsın mı?
+     */
+    _shouldAutoStartGateway() {
+        const envValue = this.env.VANTUZ_GATEWAY_AUTOSTART;
+        if (envValue !== undefined) {
+            return !['0', 'false', 'no'].includes(String(envValue).toLowerCase());
+        }
+        if (this.config && this.config.gatewayAutoStart !== undefined) {
+            return this.config.gatewayAutoStart !== false;
+        }
+        return true;
+    }
+
+    _shouldStartBridge() {
+        const envValue = this.env.VANTUZ_OPENCLAW_BRIDGE;
+        if (envValue !== undefined) {
+            return !['0', 'false', 'no'].includes(String(envValue).toLowerCase());
+        }
+        if (this.config && this.config.openclawBridge !== undefined) {
+            return this.config.openclawBridge !== false;
+        }
+        return true;
     }
 
     /**
@@ -186,36 +251,61 @@ export class VantuzEngine {
 
         for (const platformName in PLATFORM_CONFIG_MAP) {
             const platformMap = PLATFORM_CONFIG_MAP[platformName];
-            if (platformMap.envPrefix) {
-                const config = {};
-                let hasRequiredEnv = false;
-                for (const key of platformMap.keys) {
-                    const envKey = `${platformMap.envPrefix}_${key.toUpperCase()}`;
-                    if (this.env[envKey]) {
-                        config[key] = this.env[envKey];
-                        hasRequiredEnv = true;
-                    }
-                }
-                if (hasRequiredEnv) {
-                    platformConfig[platformName] = config;
-                }
-            } else if (platformName === 'amazon' && this.env.AMAZON_SELLER_ID) { // Specific handling for Amazon's nested structure
-                platformConfig.amazon = {};
+
+            if (platformName === 'amazon') { // Handle Amazon's specific nested structure first
+                const amazonConfig = {};
+                let hasAmazonEnv = false;
+
                 // Handle EU configuration
                 const euConfig = {};
                 let hasEuEnv = false;
                 for (const key of PLATFORM_CONFIG_MAP.amazon.nested.eu.keys) {
-                    const envKey = `AMAZON_${key.toUpperCase()}`;
+                    const envKey = `AMAZON_EU_${key.toUpperCase()}`; // Assuming EU specific env keys
                     if (this.env[envKey]) {
                         euConfig[key] = this.env[envKey];
                         hasEuEnv = true;
                     }
                 }
                 if (hasEuEnv) {
-                    platformConfig.amazon.eu = euConfig;
+                    amazonConfig.eu = euConfig;
+                    hasAmazonEnv = true;
                 }
 
-                // Handle US configuration if needed (add similar logic here)
+                // Handle US configuration (add similar logic here if needed)
+                const usConfig = {};
+                let hasUsEnv = false;
+                for (const key of PLATFORM_CONFIG_MAP.amazon.nested.us.keys) {
+                    const envKey = `AMAZON_US_${key.toUpperCase()}`; // Assuming US specific env keys
+                    if (this.env[envKey]) {
+                        usConfig[key] = this.env[envKey];
+                        hasUsEnv = true;
+                    }
+                }
+                if (hasUsEnv) {
+                    amazonConfig.us = usConfig;
+                    hasAmazonEnv = true;
+                }
+
+                if (hasAmazonEnv) {
+                    platformConfig[platformName] = amazonConfig;
+                }
+            } else if (platformMap.envPrefix && platformMap.keys) { // Handle other platforms with direct keys
+                const config = {};
+                let hasRequiredEnv = false;
+                for (const key of platformMap.keys) {
+                    const upper = key.toUpperCase();
+                    const snake = key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+                    const envKey = `${platformMap.envPrefix}_${upper}`;
+                    const altEnvKey = `${platformMap.envPrefix}_${snake}`;
+                    const value = this.env[envKey] || this.env[altEnvKey];
+                    if (value) {
+                        config[key] = value;
+                        hasRequiredEnv = true;
+                    }
+                }
+                if (hasRequiredEnv) {
+                    platformConfig[platformName] = config;
+                }
             }
         }
 
@@ -240,11 +330,17 @@ export class VantuzEngine {
                 if (api && typeof api.getProducts === 'function') {
                     const result = await api.getProducts({ page: 0, size: 10 });
                     if (result?.success) {
-                        const products = result.data?.content || result.data || [];
-                        this.context.products.push(...products.map(p => ({
-                            ...p,
-                            _platform: platform
-                        })));
+                        const data = result.data;
+                        let products = [];
+                        if (Array.isArray(data?.content)) products = data.content;
+                        else if (Array.isArray(data)) products = data;
+                        else if (Array.isArray(data?.productList?.product)) products = data.productList.product;
+                        if (products.length > 0) {
+                            this.context.products.push(...products.map(p => ({
+                                ...p,
+                                _platform: platform
+                            })));
+                        }
                     }
                 }
             } catch (e) {
@@ -262,6 +358,10 @@ export class VantuzEngine {
         // 1. Basit komut kontrolü (Tool çağırma)
         const toolResult = await this._tryExecuteToolFromMessage(message);
         if (toolResult) return toolResult;
+
+        // 1.5 Gelişmiş ajan (araç çağrıları)
+        const agentResult = await this._tryAgent(message);
+        if (agentResult) return agentResult;
 
         // 2. Gateway üzerinden AI (Eğer varsa)
         if (this.gateway?.isConnected()) {
@@ -282,11 +382,89 @@ export class VantuzEngine {
         return await aiChat(message, enrichedConfig, this.env);
     }
 
+    async _tryAgent(message) {
+        const mode = this.config?.agentMode || this.env.VANTUZ_AGENT_MODE;
+        if (!mode || mode === 'off') return null;
+
+        const systemPrompt = [
+            'Sen Vantuz gelişmiş ajanısın.',
+            'Gerekirse aşağıdaki araçlardan birini çağır:',
+            'exec, readFile, listDir, httpGet, apiQuery',
+            'Sadece JSON döndür.',
+            'Şema: { "tool": "exec|readFile|listDir|httpGet|apiQuery", "args": { ... } }',
+            'apiQuery args: { "platform": "n11|trendyol|hepsiburada|amazon|ciceksepeti|pazarama|pttavm", "action": "orders|products|stock|categories", "params": { ... } }',
+            'Eğer araç gerekmezse: { "final": "cevap" }',
+            'Dosya yollarını ve komutları kısa tut.'
+        ].join('\n');
+
+        const plan = await aiChat(message, {
+            aiProvider: this.config.aiProvider || 'gemini',
+            systemContext: systemPrompt
+        }, this.env);
+
+        const jsonMatch = plan.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) return null;
+        let obj;
+        try { obj = JSON.parse(jsonMatch[0]); } catch { return null; }
+        if (obj.final) return obj.final;
+        if (!obj.tool) return null;
+
+        let toolResult;
+        if (obj.tool === 'apiQuery') {
+            toolResult = await this._runApiQuery(obj.args || {});
+        } else {
+            toolResult = await executeTool(obj.tool, obj.args || {}, this.config);
+        }
+        const followup = await aiChat(
+            `Kullanıcı mesajı: ${message}\nAraç çıktısı:\n${toolResult.output}\nCevap ver.`,
+            { aiProvider: this.config.aiProvider || 'gemini' },
+            this.env
+        );
+        return followup;
+    }
+
+    async _runApiQuery(args = {}) {
+        const platform = (args.platform || '').toLowerCase();
+        const action = (args.action || '').toLowerCase();
+        const params = args.params || {};
+        const api = platformHub.resolve(platform);
+        if (!api) return { success: false, output: 'Platform bulunamadı.' };
+
+        try {
+            if (action === 'orders' && api.getOrders) {
+                const result = await api.getOrders(params);
+                return { success: true, output: JSON.stringify(result?.data || result || {}, null, 2) };
+            }
+            if (action === 'products' && api.getProducts) {
+                const result = await api.getProducts(params);
+                return { success: true, output: JSON.stringify(result?.data || result || {}, null, 2) };
+            }
+            if (action === 'stock' && api.getProducts) {
+                const result = await api.getProducts(params);
+                return { success: true, output: JSON.stringify(result?.data || result || {}, null, 2) };
+            }
+            if (action === 'categories' && api.getTopCategories) {
+                const result = await api.getTopCategories(params);
+                return { success: true, output: JSON.stringify(result?.data || result || {}, null, 2) };
+            }
+            return { success: false, output: 'Bu platform için istenen action desteklenmiyor.' };
+        } catch (e) {
+            return { success: false, output: e.message };
+        }
+    }
+
     /**
      * Mesajdan Tool tespiti (Basit NLP)
      */
     async _tryExecuteToolFromMessage(message) {
         const lower = message.toLowerCase().trim();
+        const normalized = lower
+            .replace(/[çÇ]/g, 'c')
+            .replace(/[ğĞ]/g, 'g')
+            .replace(/[ıİ]/g, 'i')
+            .replace(/[öÖ]/g, 'o')
+            .replace(/[şŞ]/g, 's')
+            .replace(/[üÜ]/g, 'u');
 
         // Check for explicit commands
         if (lower.startsWith('/')) {
@@ -311,7 +489,58 @@ export class VantuzEngine {
             }
         }
 
+        // Natural language shortcuts (no hallucination)
+        if (
+            lower.includes('hangi pazaryerleri bağlı') ||
+            lower.includes('hangi pazaryeri bağlı') ||
+            lower.includes('hangi platformlar bağlı') ||
+            normalized.includes('hangi pazaryerleri bagli') ||
+            normalized.includes('hangi platformlar bagli')
+        ) {
+            const connected = this.context.connectedPlatforms;
+            if (connected.length === 0) return 'Şu an bağlı pazaryeri yok.';
+            return `Bağlı pazaryerleri: ${connected.map(p => p.toUpperCase()).join(', ')}`;
+        }
+
+        const orderKeywords = [
+            'sipariş',
+            'siparis'
+        ];
+        const hasOrderKeyword = orderKeywords.some(k => lower.includes(k) || normalized.includes(k));
+
+        if (hasOrderKeyword) {
+            const orders = await this.getOrders({ size: 50, allStatuses: true });
+            if (!orders || orders.length === 0) {
+                return 'Sipariş verisine ulaşılamadı. Lütfen platform API bağlantılarını kontrol edin.';
+            }
+            const summary = this._summarizeOrdersByStatus(orders);
+            return `Şu an bağlı platformlardan gelen toplam ${orders.length} sipariş var.${summary ? ` Durum kırılımı: ${summary}` : ''}`;
+        }
+
+        if (lower.includes('onaylanan')) {
+            const orders = await this.getOrders({ size: 100, status: 'Picking' });
+            return `Şu an onaylanan (Picking) ${orders.length} sipariş var.`;
+        }
+
+        if (lower.includes('kargoya verilmemiş') || lower.includes('henüz kargoya') || lower.includes('kargoya verilmedi') || normalized.includes('kargoya verilmemis')) {
+            const orders = await this.getOrders({ size: 100, status: 'Created' });
+            return `Şu an kargoya verilmemiş (Created) ${orders.length} sipariş var.`;
+        }
+
         return null;
+    }
+
+    _summarizeOrdersByStatus(orders = []) {
+        if (!Array.isArray(orders) || orders.length === 0) return '';
+        const counts = {};
+        orders.forEach(o => {
+            const s = (o.status || o.shipmentPackageStatus || o.orderStatus || 'UNKNOWN').toString();
+            counts[s] = (counts[s] || 0) + 1;
+        });
+        const entries = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([s, n]) => `${s}:${n}`);
+        return entries.join(', ');
     }
 
     /**

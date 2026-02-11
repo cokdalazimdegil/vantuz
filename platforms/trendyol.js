@@ -1,7 +1,7 @@
-const axios = require('axios');
-
-module.exports = {
+export default {
     name: 'Trendyol',
+    icon: '🟠', // Orange circle icon for Trendyol
+    description: 'Türkiye\'nin En Büyük E-ticaret Platformu',
     requiredFields: [
         { key: 'supplierId', label: 'Supplier ID', env: 'TRENDYOL_SUPPLIER_ID' },
         { key: 'apiKey', label: 'API Key', env: 'TRENDYOL_API_KEY' },

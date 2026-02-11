@@ -1,7 +1,7 @@
 {
     "name": "@vantuz/plugin",
     "version": "2.0.0",
-    "description": "Vantuz AI E-Commerce Plugin for OpenClaw",
+    "description": "Vantuz AI E-Commerce Plugin for Vantuz Gateway",
     "type": "module",
     "main": "index.js",
     "exports": {

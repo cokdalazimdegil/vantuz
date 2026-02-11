@@ -10,7 +10,7 @@ import os from 'os';
 
 const LOG_FILE = path.join(os.homedir(), '.vantuz', 'vantuz.log');
 
-const PROVIDER_CONFIG = {
+export const PROVIDER_CONFIG = {
     gemini: {
         url: (apiKey) => `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
         body: (systemPrompt, message) => ({
@@ -18,7 +18,11 @@ const PROVIDER_CONFIG = {
         }),
         headers: { 'Content-Type': 'application/json' },
         parseResponse: (data) => data?.candidates?.[0]?.content?.parts?.[0]?.text,
-        errorMsg: 'Gemini yanıt vermedi'
+        errorMsg: 'Gemini yanıt vermedi',
+        config_label: 'Google Gemini',
+        config_description: 'Önerilen/Ücretsiz',
+        config_icon: '🔷',
+        envKey: 'GEMINI_API_KEY'
     },
     groq: {
         url: 'https://api.groq.com/openai/v1/chat/completions',
@@ -33,7 +37,11 @@ const PROVIDER_CONFIG = {
         }),
         headers: (apiKey) => ({ 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }),
         parseResponse: (data) => data?.choices?.[0]?.message?.content,
-        errorMsg: 'Groq yanıt vermedi'
+        errorMsg: 'Groq yanıt vermedi',
+        config_label: 'Groq',
+        config_description: 'Hızlı/Ücretsiz',
+        config_icon: '⚡',
+        envKey: 'GROQ_API_KEY'
     },
     openai: {
         url: 'https://api.openai.com/v1/chat/completions',
@@ -47,7 +55,11 @@ const PROVIDER_CONFIG = {
         }),
         headers: (apiKey) => ({ 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }),
         parseResponse: (data) => data?.choices?.[0]?.message?.content,
-        errorMsg: 'OpenAI yanıt vermedi'
+        errorMsg: 'OpenAI yanıt vermedi',
+        config_label: 'OpenAI GPT-4o',
+        config_description: 'Premium',
+        config_icon: '🟢',
+        envKey: 'OPENAI_API_KEY'
     },
     anthropic: {
         url: 'https://api.anthropic.com/v1/messages',
@@ -61,7 +73,11 @@ const PROVIDER_CONFIG = {
         }),
         headers: (apiKey) => ({ 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }),
         parseResponse: (data) => data?.content?.[0]?.text,
-        errorMsg: 'Anthropic yanıt vermedi'
+        errorMsg: 'Anthropic yanıt vermedi',
+        config_label: 'Anthropic Claude 3.5',
+        config_description: 'Advanced',
+        config_icon: '🟣',
+        envKey: 'ANTHROPIC_API_KEY'
     },
     deepseek: {
         url: 'https://api.deepseek.com/v1/chat/completions',
@@ -75,7 +91,11 @@ const PROVIDER_CONFIG = {
         }),
         headers: (apiKey) => ({ 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }),
         parseResponse: (data) => data?.choices?.[0]?.message?.content,
-        errorMsg: 'DeepSeek yanıt vermedi'
+        errorMsg: 'DeepSeek yanıt vermedi',
+        config_label: 'DeepSeek V3',
+        config_description: 'Fast',
+        config_icon: '🔵',
+        envKey: 'DEEPSEEK_API_KEY'
     }
 };
 

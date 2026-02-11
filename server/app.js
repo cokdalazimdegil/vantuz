@@ -74,6 +74,23 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+// 4b. Inbound message (channels)
+app.post('/api/inbound', async (req, res) => {
+    const { message, channel, from } = req.body || {};
+    if (!message) return res.status(400).json({ error: 'Mesaj gerekli' });
+
+    try {
+        const instance = await initEngine();
+        const response = await instance.handleMessage(message, {
+            channel: channel || 'local',
+            from: from || 'unknown'
+        });
+        res.json({ response });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 5. Logs
 app.get('/api/logs', async (req, res) => {
     const { getLogs } = await import('../core/ai-provider.js');

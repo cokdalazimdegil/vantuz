@@ -111,6 +111,58 @@ export class VantuzGateway {
     }
 
     /**
+     * Gateway sürecini başlat (lokal gateway.cmd)
+     */
+    async start() {
+        const gatewayCmd = path.join(process.cwd(), '.openclaw', 'gateway.cmd');
+        if (!fs.existsSync(gatewayCmd)) {
+            return { success: false, error: 'Gateway başlatma dosyası bulunamadı: gateway.cmd' };
+        }
+
+        try {
+            const { spawn } = await import('child_process');
+            const child = spawn(gatewayCmd, [], {
+                detached: true,
+                stdio: 'ignore',
+                shell: true
+            });
+            child.unref();
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    }
+
+    /**
+     * Gateway çalışmıyorsa başlat ve sağlık kontrolü yap
+     */
+    async ensureRunning(options = {}) {
+        const {
+            retries = 5,
+            intervalMs = 1000
+        } = options;
+
+        if (this.isConnected()) {
+            return { success: true, already: true };
+        }
+
+        const started = await this.start();
+        if (!started.success) {
+            return started;
+        }
+
+        for (let i = 0; i < retries; i++) {
+            await new Promise(r => setTimeout(r, intervalMs));
+            const health = await this.health();
+            if (health.success) {
+                return { success: true, started: true };
+            }
+        }
+
+        return { success: false, error: 'Gateway başlatıldı ancak sağlık kontrolü geçmedi' };
+    }
+
+    /**
      * Detaylı sistem durumu
      */
     async status() {

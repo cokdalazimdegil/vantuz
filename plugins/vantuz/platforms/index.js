@@ -191,15 +191,42 @@ export const platformHub = {
             const api = platforms[platform];
             try {
                 const result = await api.getOrders(params);
-                if (result?.success) {
-                    const orders = result.data.content || result.data.orders || result.data || [];
-                    return orders.map(order => ({
-                        ...order,
+                if (!result?.success) return [];
+
+                const data = result.data;
+                let orders = [];
+                if (Array.isArray(data?.content)) {
+                    orders = data.content;
+                } else if (Array.isArray(data?.orders)) {
+                    orders = data.orders;
+                } else if (Array.isArray(data)) {
+                    orders = data;
+                } else {
+                    return [];
+                }
+
+                return orders.map(order => {
+                    const normalized = { ...order };
+                    if (platform === 'n11') {
+                        if (!normalized.orderNumber && normalized.orderNumber !== 0) {
+                            normalized.orderNumber = normalized.id;
+                        }
+                        if (!normalized.customerName) {
+                            normalized.customerName = normalized.customerfullName || normalized.customerFullName;
+                        }
+                        if (!normalized.totalPrice) {
+                            normalized.totalPrice = normalized.totalAmount || normalized.totalPrice;
+                        }
+                        if (!normalized.status) {
+                            normalized.status = normalized.shipmentPackageStatus || normalized.status;
+                        }
+                    }
+                    return {
+                        ...normalized,
                         _platform: platform,
                         _icon: this.getIcon(platform)
-                    }));
-                }
-                return [];
+                    };
+                });
             } catch {
                 return [];
             }

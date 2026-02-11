@@ -22,6 +22,8 @@ const SOAP_ENDPOINTS = {
     category: 'https://api.n11.com/ws/CategoryService'
 };
 
+const REST_BASE = 'https://api.n11.com/rest';
+
 export class N11API {
     constructor(config) {
         this.apiKey = config.apiKey;
@@ -71,6 +73,30 @@ export class N11API {
                 success: true,
                 data: result['SOAP-ENV:Envelope']['SOAP-ENV:Body'][bodyKey]
             };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data || error.message
+            };
+        }
+    }
+
+    async _restRequest(method, path, params = {}) {
+        try {
+            const response = await requestWithRetry(axios, {
+                method,
+                url: `${REST_BASE}${path}`,
+                headers: {
+                    appkey: this.apiKey,
+                    appsecret: this.apiSecret
+                },
+                params
+            }, {
+                retries: 3,
+                baseDelayMs: 500,
+                maxDelayMs: 4000
+            });
+            return { success: true, data: response.data };
         } catch (error) {
             return {
                 success: false,
@@ -170,20 +196,43 @@ export class N11API {
     // ═══════════════════════════════════════════════════════════════════════════
 
     async getOrders(params = {}) {
-        const { status, startDate, endDate, page = 0, size = 100 } = params;
+        const {
+            status,
+            allStatuses = false,
+            startDate,
+            endDate,
+            page = 0,
+            size = 100,
+            orderNumber,
+            packageIds,
+            orderByField,
+            orderByDirection
+        } = params;
 
-        let searchData = '';
-        if (status) searchData += `<status>${status}</status>`;
-        if (startDate) searchData += `<period><startDate>${startDate}</startDate>`;
-        if (endDate) searchData += `<endDate>${endDate}</endDate></period>`;
+        const now = Date.now();
+        const fifteenDaysMs = 15 * 24 * 60 * 60 * 1000;
+        const effectiveStart = startDate ?? (endDate ? endDate - fifteenDaysMs : now - fifteenDaysMs);
+        const effectiveEnd = endDate ?? (startDate ? startDate + fifteenDaysMs : now);
+        const effectiveStatus = allStatuses ? undefined : (status ?? (orderNumber || packageIds ? undefined : 'Created'));
+        const requestParams = {
+            status: effectiveStatus,
+            startDate: effectiveStart,
+            endDate: effectiveEnd,
+            page,
+            size: Math.min(Number(size) || 100, 100),
+            orderNumber,
+            packageIds,
+            orderByField,
+            orderByDirection
+        };
 
-        return await this._soapRequest('order', 'DetailedOrderList', `
-      <searchData>${searchData}</searchData>
-      <pagingData>
-        <currentPage>${page}</currentPage>
-        <pageSize>${size}</pageSize>
-      </pagingData>
-    `);
+        Object.keys(requestParams).forEach(key => {
+            if (requestParams[key] === undefined || requestParams[key] === null || requestParams[key] === '') {
+                delete requestParams[key];
+            }
+        });
+
+        return await this._restRequest('GET', '/delivery/v1/shipmentPackages', requestParams);
     }
 
     async getOrderDetail(orderId) {
