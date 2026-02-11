@@ -5,15 +5,13 @@
     "type": "module",
     "main": "cli.js",
     "bin": {
-        "vantuz": "cli.js",
-        "vantuz-onboard": "onboard.js"
+        "vantuz": "cli.js"
     },
     "scripts": {
         "start": "node cli.js tui",
         "tui": "node cli.js tui",
         "config": "node cli.js config",
         "status": "node cli.js status",
-        "onboard": "node onboard.js",
         "postinstall": "echo '🐙 Vantuz kuruldu! Başlatmak için: npx vantuz-onboard'",
         "test": "node --test",
         "lint": "eslint plugins/"
