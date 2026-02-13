@@ -135,6 +135,38 @@ export function clearLogs() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// WORKSPACE IDENTITY LOADER
+// ═══════════════════════════════════════════════════════════════════════════
+
+const WORKSPACE_DIR = path.join(process.cwd(), 'workspace');
+
+/**
+ * Loads workspace identity files (BRAND.md, SOUL.md, AGENTS.md)
+ * These files define the AI's personality, brand rules, and capabilities.
+ */
+function loadWorkspaceIdentity() {
+    const files = ['BRAND.md', 'SOUL.md', 'AGENTS.md'];
+    let identity = '';
+
+    for (const file of files) {
+        const filePath = path.join(WORKSPACE_DIR, file);
+        try {
+            if (fs.existsSync(filePath)) {
+                const content = fs.readFileSync(filePath, 'utf-8').trim();
+                if (content) {
+                    identity += `\n\n--- ${file} ---\n${content}`;
+                    log('INFO', `Workspace identity loaded: ${file}`, { chars: content.length });
+                }
+            }
+        } catch (e) {
+            log('WARN', `Workspace file read error: ${file}`, { error: e.message });
+        }
+    }
+
+    return identity;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // SYSTEM PROMPT
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -158,17 +190,18 @@ const VANTUZ_SYSTEM_PROMPT = `Sen Vantuz AI, e-ticaret operasyonlarını yönete
 ## Yeteneklerin
 - Stok kontrolü ve güncelleme
 - Fiyat analizi ve güncelleme
-- Sipariş yönetimi
+- Sipariş yönetimi (Listeleme, Durum sorgulama)
 - Rakip analizi
 - Satış raporları
+- Zamanlanmış görevler (Cron Jobs) oluşturma/yönetme
 
 ## Önemli Kurallar
 1. **ASLA VE ASLA** elindeki "MEVCUT SİSTEM DURUMU" verisinde olmayan bir sayıyı uydurma.
-2. Eğer bağlamda sipariş sayısı 0 görünüyorsa veya hiç veri yoksa, "Şu an sipariş verisine ulaşamıyorum" de.
-3. "25 sipariş var" gibi rastgele sayılar verme.
-4. Kar marjının altına fiyat düşürme önerme.
-5. Stokta olmayan ürünü satışa açma.
-6. Kritik işlemlerden önce onay iste.
+2. Eğer mesajda "cron" veya "zamanla" geçiyorsa, cron formatında zamanlanmış görev oluşturmayı teklif et.
+3. Sipariş veya ürün listeleme gibi OKUMA (Read) işlemleri için ASLA onay isteme. Doğrudan listele.
+4. Sadece Fiyat/Stok güncelleme veya Silme gibi YAZMA (Write) işlemleri için risk uyarısı ver.
+5. Kullanıcı "Risk Kabul Edildi" modundaysa (RISK_ACCEPTED=true), onay istemeden işlemi yap.
+6. Kar marjının altına fiyat düşürme önerme.
 
 ## Yanıt Formatı
 - Kısa ve öz ol
@@ -205,7 +238,8 @@ export async function chat(message, config, env) {
 
     // Context bilgisi ekle
     const contextInfo = config.systemContext || '';
-    const fullSystemPrompt = VANTUZ_SYSTEM_PROMPT + contextInfo;
+    const workspaceIdentity = loadWorkspaceIdentity();
+    const fullSystemPrompt = VANTUZ_SYSTEM_PROMPT + contextInfo + (workspaceIdentity ? `\n\n## MARKA KİMLİĞİ VE STRATEJİ\nAşağıdaki kurallara MUTLAKA uy:${workspaceIdentity}` : '');
 
     log('INFO', `AI isteği: ${provider}`, { message: message.slice(0, 100) });
 

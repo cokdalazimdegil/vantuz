@@ -17,10 +17,12 @@ import platformHub from '../plugins/vantuz/platforms/index.js';
 import { getChannelManager } from './channels.js';
 import { chat as aiChat, log } from './ai-provider.js';
 import { getGateway } from './gateway.js';
-import { getEIAMonitor } from './eia-monitor.js'; // New import
+import { getEIAMonitor } from './eia-monitor.js';
 import AutomationManager from './automation.js';
 import OpenClawBridge from './openclaw-bridge.js';
 import { executeTool } from './agent.js';
+import { getCriticalQueue } from './queue.js';
+import { getMemory } from './memory.js';
 
 // Tools
 import { repricerTool } from '../plugins/vantuz/tools/repricer.js';
@@ -46,26 +48,19 @@ const PLATFORM_CONFIG_MAP = {
     },
     amazon: {
         envPrefix: 'AMAZON',
-        nested: {
-            eu: {
-                keys: ['sellerId', 'clientId', 'refreshToken']
-            },
-            us: {
-                keys: ['sellerId', 'clientId', 'refreshToken']
-            }
-        }
+        keys: ['sellerId', 'clientId', 'clientSecret', 'refreshToken', 'region']
     },
     ciceksepeti: {
         envPrefix: 'CICEKSEPETI',
-        keys: ['apiKey', 'apiSecret']
+        keys: ['apiKey', 'supplierId']
     },
     pttavm: {
         envPrefix: 'PTTAVM',
-        keys: ['apiKey', 'apiSecret']
+        keys: ['apiKey', 'token', 'shopId']
     },
     pazarama: {
         envPrefix: 'PAZARAMA',
-        keys: ['apiKey', 'apiSecret']
+        keys: ['clientId', 'clientSecret']
     }
 };
 
@@ -107,6 +102,10 @@ export class VantuzEngine {
             analytics: analyticsTool,
             quickReport: quickReportTool
         };
+
+        // Critical Operation Queue (Lane Queue)
+        this.queue = getCriticalQueue();
+        this.memory = getMemory();
     }
 
     /**
@@ -252,44 +251,7 @@ export class VantuzEngine {
         for (const platformName in PLATFORM_CONFIG_MAP) {
             const platformMap = PLATFORM_CONFIG_MAP[platformName];
 
-            if (platformName === 'amazon') { // Handle Amazon's specific nested structure first
-                const amazonConfig = {};
-                let hasAmazonEnv = false;
-
-                // Handle EU configuration
-                const euConfig = {};
-                let hasEuEnv = false;
-                for (const key of PLATFORM_CONFIG_MAP.amazon.nested.eu.keys) {
-                    const envKey = `AMAZON_EU_${key.toUpperCase()}`; // Assuming EU specific env keys
-                    if (this.env[envKey]) {
-                        euConfig[key] = this.env[envKey];
-                        hasEuEnv = true;
-                    }
-                }
-                if (hasEuEnv) {
-                    amazonConfig.eu = euConfig;
-                    hasAmazonEnv = true;
-                }
-
-                // Handle US configuration (add similar logic here if needed)
-                const usConfig = {};
-                let hasUsEnv = false;
-                for (const key of PLATFORM_CONFIG_MAP.amazon.nested.us.keys) {
-                    const envKey = `AMAZON_US_${key.toUpperCase()}`; // Assuming US specific env keys
-                    if (this.env[envKey]) {
-                        usConfig[key] = this.env[envKey];
-                        hasUsEnv = true;
-                    }
-                }
-                if (hasUsEnv) {
-                    amazonConfig.us = usConfig;
-                    hasAmazonEnv = true;
-                }
-
-                if (hasAmazonEnv) {
-                    platformConfig[platformName] = amazonConfig;
-                }
-            } else if (platformMap.envPrefix && platformMap.keys) { // Handle other platforms with direct keys
+            if (platformMap.envPrefix && platformMap.keys) { // Handle all platforms with direct keys
                 const config = {};
                 let hasRequiredEnv = false;
                 for (const key of platformMap.keys) {
@@ -376,6 +338,7 @@ export class VantuzEngine {
         // 3. Direkt API (Fallback)
         const enrichedConfig = {
             ...this.config,
+            aiProvider: this.env.AI_PROVIDER || this.config.aiProvider || 'gemini',
             systemContext: this._buildContextInfo()
         };
 
@@ -509,12 +472,28 @@ export class VantuzEngine {
         const hasOrderKeyword = orderKeywords.some(k => lower.includes(k) || normalized.includes(k));
 
         if (hasOrderKeyword) {
-            const orders = await this.getOrders({ size: 50, allStatuses: true });
+            const orders = await this.getOrders({ size: 100, allStatuses: true });
             if (!orders || orders.length === 0) {
                 return 'Sipariş verisine ulaşılamadı. Lütfen platform API bağlantılarını kontrol edin.';
             }
-            const summary = this._summarizeOrdersByStatus(orders);
-            return `Şu an bağlı platformlardan gelen toplam ${orders.length} sipariş var.${summary ? ` Durum kırılımı: ${summary}` : ''}`;
+
+            const active = orders.filter(o => this.isActiveStatus(o.status || o.shipmentPackageStatus || o.orderStatus));
+            const completed = orders.filter(o => !this.isActiveStatus(o.status || o.shipmentPackageStatus || o.orderStatus));
+
+            let message = '';
+            if (active.length > 0) {
+                const summary = this._summarizeOrdersByStatus(active);
+                message += `Şu an bağlı platformlardan gelen toplam ${active.length} YENİ/AKTİF sipariş var.${summary ? ` (${summary})` : ''}`;
+            } else {
+                message += 'Şu an aktif (yeni/hazırlanan) sipariş yok.';
+            }
+
+            if (completed.length > 0) {
+                const summary = this._summarizeOrdersByStatus(completed);
+                message += `\n(Geçmiş Siparişler: ${completed.length} adet - ${summary})`;
+            }
+
+            return message;
         }
 
         if (lower.includes('onaylanan')) {
@@ -564,6 +543,11 @@ export class VantuzEngine {
 
     // --- Helper Methods ---
 
+    isActiveStatus(status) {
+        const s = String(status || '').toLowerCase();
+        return s === 'created' || s === 'picking' || s === 'unpacked' || s === 'shipped';
+    }
+
     async getStock(platform = 'all') {
         const results = [];
         const targets = platform === 'all'
@@ -609,7 +593,7 @@ export class VantuzEngine {
         return {
             engine: this.initialized ? 'active' : 'inactive',
             version: '3.2',
-            aiProvider: this.config.aiProvider || 'gemini',
+            aiProvider: this.env.AI_PROVIDER || this.config.aiProvider || 'gemini',
             gateway: gatewayInfo,
             platforms: status,
             channels: channelStatus,

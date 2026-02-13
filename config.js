@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+
 
 /**
  * VANTUZ - Profesyonel Kurulum Sihirbazı
@@ -23,7 +23,7 @@ const colors = {
     dim: '\x1b[2m',
     italic: '\x1b[3m',
     underscore: '\x1b[4m',
-    
+
     // Foreground colors
     black: '\x1b[30m',
     red: '\x1b[31m',
@@ -33,7 +33,7 @@ const colors = {
     magenta: '\x1b[35m',
     cyan: '\x1b[36m',
     white: '\x1b[37m',
-    
+
     // Bright foreground colors
     brightBlack: '\x1b[90m',
     brightRed: '\x1b[91m',
@@ -43,7 +43,7 @@ const colors = {
     brightMagenta: '\x1b[95m',
     brightCyan: '\x1b[96m',
     brightWhite: '\x1b[97m',
-    
+
     // Background colors
     bgBlack: '\x1b[40m',
     bgRed: '\x1b[41m',
@@ -85,21 +85,21 @@ ${colors.brightCyan}    Enterprise E-Ticaret Yönetimi${colors.reset}
 const createBox = (title, content, width = 65) => {
     const lines = content.split('\n');
     let result = '';
-    
+
     // Top border with title
     result += c('brightCyan', box.topLeft + box.horizontal.repeat(3));
     result += c('bold', ` ${title} `);
     result += c('brightCyan', box.horizontal.repeat(width - title.length - 5) + box.topRight) + '\n';
-    
+
     // Content
     lines.forEach(line => {
         const padding = ' '.repeat(Math.max(0, width - line.length - 2));
         result += c('brightCyan', box.vertical) + ' ' + line + padding + ' ' + c('brightCyan', box.vertical) + '\n';
     });
-    
+
     // Bottom border
     result += c('brightCyan', box.bottomLeft + box.horizontal.repeat(width) + box.bottomRight) + '\n';
-    
+
     return result;
 };
 
@@ -135,7 +135,7 @@ class Configurator {
                     // Dynamic import for ES Modules
                     const platformModule = await import(pathToFileURL(platformPath).href);
                     // Check if module.exports is present (CommonJS) or default export (ESM)
-                    const platform = platformModule.default || platformModule; 
+                    const platform = platformModule.default || platformModule;
 
                     if (platform.name && platform.requiredFields) {
                         dynamicPlatforms.push({
@@ -170,7 +170,7 @@ class Configurator {
         }
         return env;
     }
-    
+
     async step_EIAConfig() {
         this.printHeader('E-TİCARET YÖNETİM AJANSI (EIA) YAPILANDIRMASI', '📊');
 
@@ -178,11 +178,11 @@ class Configurator {
         console.log(this.infoMessage('Bu bilgiler, EIA\'nın pazar analizi ve stratejik kararlarında kullanılacaktır.'));
 
         await sleep(200);
-        
+
         const currentCompetitorUrls = this.envVars.EIA_COMPETITOR_URLS || '';
         console.log(this.createInputBox('Rakip Ürün URL\'leri', 'Virgülle ayırarak birden fazla rakip ürün veya kategori URL\'si girebilirsiniz. (Örn: https://rakip.com/urun1, https://rakip.com/kategori)'));
         const competitorUrls = await this.prompt('', currentCompetitorUrls);
-        
+
         // Basic validation for URLs
         const urls = competitorUrls.split(',').map(url => url.trim()).filter(url => url !== '');
         const invalidUrls = urls.filter(url => url && (!url.startsWith('http://') && !url.startsWith('https://')));
@@ -212,7 +212,7 @@ class Configurator {
         const currentProfitMargin = this.envVars.EIA_TARGET_PROFIT_MARGIN ? String(this.envVars.EIA_TARGET_PROFIT_MARGIN) : '15';
         console.log(this.createInputBox('Hedef Kar Marjı (%)', 'Ürünleriniz için ulaşmak istediğiniz ortalama kar marjı hedefi. (Örnek: 15)'));
         const profitMargin = await this.prompt('', currentProfitMargin);
-        
+
         if (profitMargin && !isNaN(parseFloat(profitMargin)) && parseFloat(profitMargin) >= 0) {
             this.envVars.EIA_TARGET_PROFIT_MARGIN = parseFloat(profitMargin);
             console.log(this.successMessage('Hedef Kar Marjı kaydedildi/güncellendi. EIA, fiyatlandırma önerilerinde bu marjı dikkate alacaktır.'));
@@ -249,6 +249,7 @@ class Configurator {
             await this.step3_Channels();
             await this.step4_Gateway();
             await this.step_EIAConfig();
+            await this.step_RiskAcceptance(); // Add risk acceptance step
             await this.step5_Save();
             await this.showSuccess();
         } catch (error) {
@@ -265,9 +266,9 @@ class Configurator {
 
             while (true) {
                 this.printHeader('VANTUZ YAPILANDIRMA MENÜSÜ', '⚙️');
-                
+
                 console.log(c('brightWhite', 'Lütfen yapılandırmak istediğiniz alanı seçin:\n'));
-                
+
                 console.log(this.menuItem('1', '🤖 Yapay Zeka Servisi', 'AI Provider'));
                 console.log(this.menuItem('2', '🛒 Pazaryeri Entegrasyonları', 'Platforms'));
                 console.log(this.menuItem('3', '💬 İletişim Kanalları', 'Channels'));
@@ -334,7 +335,7 @@ class Configurator {
         const keyStyle = style === 'dim' ? 'dim' : 'brightYellow';
         const titleStyle = style === 'dim' ? 'dim' : 'brightWhite';
         const subtitleStyle = 'dim';
-        
+
         let line = `  ${c(keyStyle, c('bold', key))}. ${c(titleStyle, title)}`;
         if (subtitle) {
             line += ` ${c(subtitleStyle, `(${subtitle})`)}`;
@@ -384,7 +385,8 @@ class Configurator {
                 choice: String(index + 1),
                 label: `${icon} ${label}`,
                 description: description,
-                envKey: providerInfo.envKey // Store the actual env key
+                envKey: providerInfo.envKey, // Store the actual env key
+                key: key // Store the provider key (e.g., 'gemini', 'groq')
             };
         });
 
@@ -404,7 +406,7 @@ class Configurator {
             }
         }
         if (!currentAIChoice && this.envVars.GEMINI_API_KEY) { // Fallback to Gemini if no other is set but Gemini is.
-             currentAIChoice = providerOptions.find(opt => opt.envKey === 'GEMINI_API_KEY')?.choice || '';
+            currentAIChoice = providerOptions.find(opt => opt.envKey === 'GEMINI_API_KEY')?.choice || '';
         }
         if (!currentAIChoice) currentAIChoice = '1'; // Default to first option if nothing is set
 
@@ -432,13 +434,15 @@ class Configurator {
 
         if (key && key.trim()) {
             this.envVars[selectedOption.envKey] = key.trim();
+            this.envVars.AI_PROVIDER = selectedOption.key; // Save the provider key (e.g., 'groq')
+
             // Clear other AI keys if one is selected
             providerOptions.forEach(option => {
                 if (option.envKey !== selectedOption.envKey && this.envVars[option.envKey]) {
                     delete this.envVars[option.envKey];
                 }
             });
-            console.log(this.successMessage('API anahtarı kaydedildi'));
+            console.log(this.successMessage('API anahtarı ve sağlayıcı seçimi kaydedildi'));
         } else {
             if (this.envVars[selectedOption.envKey]) {
                 delete this.envVars[selectedOption.envKey];
@@ -455,7 +459,7 @@ class Configurator {
         this.printHeader('PAZARYERİ ENTEGRASYONLARI', '🛒');
 
         console.log(c('brightWhite', 'Hangi pazaryerini yapılandırmak istersiniz?\n'));
-        
+
         // Dynamically generate menu items from this.platforms
         this.platforms.forEach((platform, index) => {
             console.log(this.menuItem(String(index + 1), `${platform.icon} ${platform.name}`, platform.description));
@@ -481,7 +485,7 @@ class Configurator {
 
         console.log(this.successMessage(`${selectedPlatform.icon} ${selectedPlatform.name} seçildi`));
         console.log(c('dim', 'Mevcut değerleri değiştirmek için yeni değer girin veya boş bırakın\n'));
-        
+
         let allFieldsProvided = true;
         for (const field of selectedPlatform.requiredFields) {
             const currentVal = this.envVars[field.env] || '';
@@ -555,8 +559,8 @@ class Configurator {
             await sleep(1000);
         } else if (choice === '2') { // Information about WhatsApp
             this.printHeader('WhatsApp Kurulum Bilgisi', '💬');
-        console.log(this.infoMessage('WhatsApp entegrasyonu Vantuz Gateway üzerinden sağlanır.'));
-        console.log(c('brightWhite', 'Gateway\'inizi yapılandırdıktan ve başlattıktan sonra, Gateway arayüzünden WhatsApp kanalını etkinleştirebilirsiniz.\n'));
+            console.log(this.infoMessage('WhatsApp entegrasyonu Vantuz Gateway üzerinden sağlanır.'));
+            console.log(c('brightWhite', 'Gateway\'inizi yapılandırdıktan ve başlattıktan sonra, Gateway arayüzünden WhatsApp kanalını etkinleştirebilirsiniz.\n'));
             console.log(c('dim', '  Gateway durumunu kontrol etmek için:  ') + c('brightCyan', 'vantuz gateway status'));
             console.log(c('dim', '  Gateway\'i başlatmak için:         ') + c('brightCyan', 'start.bat') + '\n');
             await this.prompt(c('dim', '▶ Devam etmek için Enter\'a basın...'));
@@ -595,18 +599,61 @@ class Configurator {
         console.log('');
 
         if (!info.configFound || !info.hasToken || !info.connected) {
-            console.log(this.warningMessage('Gateway tam olarak yapılandırılmamış veya çalışmıyor gibi görünüyor.'));
-            console.log(c('brightWhite', 'Lütfen Gateway\'i başlatmak ve tam olarak yapılandırmak için `start.bat` dosyasını çalıştırın.\n'));
-            console.log(c('dim', '  `start.bat` komutu gerekli dosyaları oluşturacak ve Gateway\'i başlatacaktır.'));
-            console.log(c('dim', '  Daha sonra durumu tekrar kontrol etmek için: ') + c('brightCyan', 'vantuz gateway status'));
+            console.log(this.warningMessage('Gateway tam olarak yapılandırılmamış veya çalışmıyor.'));
+
+            const startChoice = await this.prompt('Sistemi otomatik başlatmak ister misiniz? (E/h)', 'E');
+            if (startChoice.toLowerCase() !== 'h') {
+                console.log(c('dim', 'Sistem başlatılıyor (Gateway + Server)...'));
+                const result = await gateway.startFullStack();
+
+                if (result.success) {
+                    console.log(this.successMessage('Başlatma komutları gönderildi.'));
+                    console.log(c('dim', 'Servislerin açılması 10-15 saniye sürebilir.'));
+                    await sleep(5000); // Wait a bit before re-checking
+
+                    // Re-check status
+                    const newInfo = (await gateway.health()).success;
+                    if (newInfo) console.log(this.successMessage('Gateway bağlantısı sağlandı!'));
+                    else console.log(c('yellow', 'Gateway henüz hazır değil, arka planda açılıyor...'));
+                } else {
+                    console.log(this.errorMessage('Başlatma sırasında hata oluştu.'));
+                    if (result.gateway?.error) console.log(c('red', `Gateway Hatası: ${result.gateway.error}`));
+                    if (result.server?.error) console.log(c('red', `Server Hatası: ${result.server.error}`));
+                }
+            } else {
+                console.log(c('dim', 'Manuel başlatmak için `start.bat` kullanabilirsiniz.'));
+            }
         } else {
-            console.log(this.successMessage('Gateway başarılı bir şekilde yapılandırılmış ve çalışıyor görünüyor.'));
-            console.log(c('brightWhite', 'Durumunu kontrol etmek için dilediğiniz zaman `vantuz gateway status` komutunu kullanabilirsiniz.\n'));
+            console.log(this.successMessage('Gateway başarılı bir şekilde yapılandırılmış ve çalışıyor.'));
+            console.log(c('dim', 'Durumu kontrol etmek için: vantuz gateway status'));
         }
         await this.prompt(c('dim', '▶ Devam etmek için Enter\'a basın...'));
     }
 
     // KAYDET
+    async step_RiskAcceptance() {
+        if (this.envVars.RISK_ACCEPTED === 'true') return;
+
+        this.printHeader('RİSK KABULÜ', '⚠️');
+        console.log(c('brightWhite', 'Vantuz AI, sizin adınıza fiyat ve stok güncellemeleri yapabilir.\n'));
+        console.log(c('yellow', 'Bazı işlemler geri alınamaz olabilir. Otonom kararlar için riskleri kabul ediyor musunuz?'));
+        console.log(c('dim', '(Kabul ederseniz, yazma işlemlerinde sürekli onay sormayacaktır.)\n'));
+
+        console.log(this.menuItem('E', 'Evet, kabul ediyorum', 'Otonom mod'));
+        console.log(this.menuItem('H', 'Hayır, her işlemde sor', 'Güvenli mod'));
+        console.log('');
+
+        const choice = await this.prompt(c('brightYellow', '❯ Seçiminiz (E/H)'));
+        if (choice.toLowerCase() === 'e') {
+            this.envVars.RISK_ACCEPTED = 'true';
+            console.log(this.successMessage('Risk kabul edildi. Otonom mod aktif.'));
+        } else {
+            this.envVars.RISK_ACCEPTED = 'false';
+            console.log(this.infoMessage('Güvenli mod aktif. Kritik işlemlerde onay istenecektir.'));
+        }
+        await sleep(1000);
+    }
+
     async step5_Save() {
         this.printHeader('AYARLAR KAYDEDİLİYOR', '💾');
 
@@ -640,16 +687,16 @@ class Configurator {
     async showSuccess() {
         this.clear();
         console.log('\n');
-        
+
         const successBox = `
 ${colors.brightGreen}${box.topLeft}${box.horizontal.repeat(63)}${box.topRight}
 ${box.vertical}${' '.repeat(17)}KURULUM BAŞARIYLA TAMAMLANDI${' '.repeat(17)}${box.vertical}
 ${box.bottomLeft}${box.horizontal.repeat(63)}${box.bottomRight}${colors.reset}
 `;
-        
+
         console.log(successBox);
         console.log(c('brightWhite', '\nVantuz AI kullanıma hazırdır! 🎉\n'));
-        
+
         console.log(c('bold', 'Başlamak için şu komutları kullanabilirsiniz:\n'));
         console.log(c('brightCyan', '  vantuz tui') + c('dim', '      - Sohbet arayüzünü başlatır'));
         console.log(c('brightCyan', '  vantuz status') + c('dim', '   - Sistem durumunu gösterir'));

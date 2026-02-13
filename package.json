@@ -1,18 +1,19 @@
 {
     "name": "vantuz",
-    "version": "3.3.2",
+    "version": "3.3.6",
     "description": "Yapay Zeka Destekli E-Ticaret Yönetim Platformu - 7 Pazaryeri + WhatsApp/Telegram",
     "type": "module",
     "main": "cli.js",
     "bin": {
-        "vantuz": "cli.js"
+        "vantuz": "cli.js",
+        "vantuz-onboard": "onboard.js"
     },
     "scripts": {
         "start": "node cli.js tui",
         "tui": "node cli.js tui",
         "config": "node cli.js config",
         "status": "node cli.js status",
-        "postinstall": "echo '🐙 Vantuz kuruldu! Başlatmak için: npx vantuz-onboard'",
+        "postinstall": "echo \u0027Vantuz kuruldu! Baslatmak icin: npx vantuz-onboard\u0027",
         "test": "node --test",
         "lint": "eslint plugins/"
     },
@@ -43,11 +44,11 @@
     "license": "SEE LICENSE IN LICENSE",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/nuricanavsar/vantuz.git"
+        "url": "git+https://github.com/cokdalazimdegil/vantuz.git"
     },
-    "homepage": "https://vantuz.ai",
+    "homepage": "https://nuricanavsar.com/public/vantuz",
     "bugs": {
-        "url": "https://github.com/nuricanavsar/vantuz/issues"
+        "url": "https://github.com/cokdalazimdegil/vantuz/issues"
     },
     "dependencies": {
         "axios": "^1.13.5",
@@ -70,15 +71,17 @@
         "win32"
     ],
     "engines": {
-        "node": ">=18.0.0"
+        "node": "\u003e=18.0.0"
     },
     "files": [
         "cli.js",
         "onboard.js",
+        "config.js",
         "core",
         "server",
         "platforms",
         "plugins",
+        "start.bat",
         "LICENSE",
         "README.md"
     ]

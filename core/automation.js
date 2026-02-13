@@ -10,14 +10,13 @@ const VANTUZ_HOME = path.join(os.homedir(), '.vantuz');
 const CONFIG_JSON = path.join(VANTUZ_HOME, 'config.json');
 
 const RISKY_KEYWORDS = [
-    'fiyat', 'zam', 'indirim', 'stok', 'g?ncelle', 'update',
-    'yay?nla', 'yay?ndan kald?r', 'unpublish', 'publish',
-    'kampanya', 'kupon', 'ip',
-    'sil', 'kald?r', 'de?i?tir', 'price', 'stock'
+    'güncelle', 'update', 'yayınla', 'publish', 'yayından kaldır', 'unpublish',
+    'değiştir', 'change', 'sil', 'kaldır', 'delete', 'remove',
+    'fiyatı yap', 'stoğu yap'
 ];
 
 const APPROVE_KEYWORDS = ['onay', 'onayla', 'kabul', 'evet', 'tamam'];
-const REJECT_KEYWORDS = ['hay?r', 'iptal', 'vazge?', 'reddet'];
+const REJECT_KEYWORDS = ['hayır', 'iptal', 'vazgeç', 'reddet'];
 
 function loadConfig() {
     try {
@@ -25,7 +24,7 @@ function loadConfig() {
             return JSON.parse(fs.readFileSync(CONFIG_JSON, 'utf-8'));
         }
     } catch (e) {
-        log('WARN', 'Config okunamad?', { error: e.message });
+        log('WARN', 'Config okunamadı', { error: e.message });
     }
     return {};
 }
@@ -35,7 +34,7 @@ function saveConfig(config) {
         fs.writeFileSync(CONFIG_JSON, JSON.stringify(config, null, 2));
         return true;
     } catch (e) {
-        log('WARN', 'Config yaz?lamad?', { error: e.message });
+        log('WARN', 'Config yazılamadı', { error: e.message });
         return false;
     }
 }
@@ -54,12 +53,12 @@ function messageHasAny(message, keywords) {
 function normalizeTr(input) {
     return String(input || '')
         .toLowerCase()
-        .replace(/[??]/g, 'c')
-        .replace(/[??]/g, 'g')
-        .replace(/[??]/g, 'i')
-        .replace(/[??]/g, 'o')
-        .replace(/[??]/g, 's')
-        .replace(/[??]/g, 'u');
+        .replace(/[çÇ]/g, 'c')
+        .replace(/[ğĞ]/g, 'g')
+        .replace(/[ıİ]/g, 'i')
+        .replace(/[öÖ]/g, 'o')
+        .replace(/[şŞ]/g, 's')
+        .replace(/[üÜ]/g, 'u');
 }
 
 function summarizeOrdersByStatus(orders = []) {
@@ -77,7 +76,7 @@ function summarizeOrdersByStatus(orders = []) {
 
 function isActiveStatus(status) {
     const s = String(status || '').toLowerCase();
-    return s === 'created' || s === 'picking' || s === 'unpacked';
+    return s === 'created' || s === 'picking' || s === 'unpacked' || s === 'shipped';
 }
 
 function extractProductNames(order) {
@@ -107,7 +106,7 @@ function getOrderTimestamp(order) {
 
 function formatOrderLine(order) {
     const number = order.orderNumber || order.id || 'N/A';
-    const name = order.customerName || order.customerfullName || order.customerFullName || 'M??teri';
+    const name = order.customerName || order.customerfullName || order.customerFullName || 'Müşteri';
     const total = order.totalPrice ?? order.totalAmount ?? order.total ?? '?';
     const status = order.status || order.shipmentPackageStatus || order.orderStatus || 'UNKNOWN';
     return `#${number} - ${name} - ${total} TL - ${status}`;
@@ -175,13 +174,13 @@ function removeApproval(config, approvalId) {
 
 async function planWithAI(message, engine) {
     const systemPrompt = [
-        'Sen Vantuz otomasyon planlay?c?s?s?n.',
-        'Kullan?c? mesaj?n? tek bir otomasyon plan?na ?evir ve sadece JSON d?nd?r.',
-        '?ema:',
+        'Sen Vantuz otomasyon planlayıcısısın.',
+        'Kullanıcı mesajını tek bir otomasyon planına çevir ve sadece JSON döndür.',
+        'Şema:',
         '{ "intent": "report|analysis|change|schedule|other", "risk": "low|high", "schedule": "", "action": "" }',
-        'risk = pazaryeri de?i?ikli?i varsa "high" olmal?.',
-        'schedule = cron ifadesi (bo? olabilir).',
-        'action = yap?lacak i?i k?sa T?rk?e ?zetle.'
+        'risk = SADECE veri değiştiren/silen işlemler (update/delete/create) varsa "high" olmalı. Listeleme/okuma işlemleri her zaman "low".',
+        'schedule = cron ifadesi (boş olabilir).',
+        'action = yapılacak işi kısa Türkçe özetle.'
     ].join('\n');
 
     const response = await aiChat(message, {
@@ -200,10 +199,14 @@ async function planWithAI(message, engine) {
 
 function fallbackPlan(message) {
     const risky = messageHasAny(message, RISKY_KEYWORDS);
+    // Explicitly safe keywords check
+    const safeKeywords = ['listele', 'göster', 'nedir', 'kaç', 'ne kadar', 'durum', 'rapor'];
+    const safe = messageHasAny(message, safeKeywords);
+
     const schedule = message.includes('cron ') ? message.split('cron ')[1].trim() : '';
     return {
         intent: schedule ? 'schedule' : (risky ? 'change' : 'analysis'),
-        risk: risky ? 'high' : 'low',
+        risk: (risky && !safe) ? 'high' : 'low',
         schedule,
         action: message
     };
@@ -231,14 +234,30 @@ export class AutomationManager {
         if (!job?.name || !job?.cron || !job?.message) return;
 
         this.scheduler.addJob(job.name, job.cron, async () => {
+            log('INFO', `Cron job executing: ${job.name}`, { message: job.message });
             await this.engine.chat(job.message);
         }, true);
 
         if (persist) {
-            this.config.automation.cronJobs.push(job);
-            saveConfig(this.config);
+            const exists = this.config.automation.cronJobs.find(j => j.name === job.name);
+            if (!exists) {
+                this.config.automation.cronJobs.push(job);
+                saveConfig(this.config);
+            }
         }
     }
+
+    _deleteJob(name) {
+        this.scheduler.removeJob(name);
+        this.config.automation.cronJobs = this.config.automation.cronJobs.filter(j => j.name !== name && j.name !== `auto-${name}`);
+        saveConfig(this.config);
+        return true;
+    }
+
+    _listJobs() {
+        return this.config.automation.cronJobs || [];
+    }
+
 
     async handleMessage(message, meta = { channel: 'local', from: 'local' }) {
         this.config = ensureConfigShape(loadConfig());

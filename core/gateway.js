@@ -111,26 +111,97 @@ export class VantuzGateway {
     }
 
     /**
-     * Gateway sürecini başlat (lokal gateway.cmd)
+     * Gateway sürecini başlat
      */
     async start() {
-        const gatewayCmd = path.join(process.cwd(), '.openclaw', 'gateway.cmd');
-        if (!fs.existsSync(gatewayCmd)) {
-            return { success: false, error: 'Gateway başlatma dosyası bulunamadı: gateway.cmd' };
+        const cwd = process.cwd();
+        const gatewayCmd = path.join(cwd, '.openclaw', 'gateway.cmd');
+        const isWin = process.platform === 'win32';
+
+        try {
+            const { spawn } = await import('child_process');
+            let child;
+
+            if (isWin && fs.existsSync(gatewayCmd)) {
+                // Windows: Use generated CMD (has config env vars)
+                child = spawn(gatewayCmd, [], {
+                    detached: true,
+                    stdio: 'ignore', // Keep it in background
+                    shell: true,
+                    cwd // Ensure CWD is correct for finding node_modules
+                });
+            } else {
+                // Linux/Mac or missing CMD: Use npx directly
+                // We try to load token from config if possible to pass as ENV
+                const env = { ...process.env };
+                if (this.config?.gateway?.auth?.token) {
+                    env.OPENCLAW_GATEWAY_TOKEN = this.config.gateway.auth.token;
+                }
+
+                child = spawn('npx', ['openclaw', 'gateway', '--port', '18789', '--allow-unconfigured'], {
+                    detached: true,
+                    stdio: 'ignore',
+                    shell: true,
+                    cwd,
+                    env
+                });
+            }
+
+            if (child) {
+                child.unref(); // Detach process so it outlives parent
+                return { success: true };
+            }
+            return { success: false, error: 'Child process could not be spawned' };
+
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    }
+
+    /**
+     * Vantuz API Server (server/app.js) başlat
+     */
+    async startServer() {
+        const serverPath = path.join(process.cwd(), 'server', 'app.js');
+        if (!fs.existsSync(serverPath)) {
+            return { success: false, error: 'Server dosyası bulunamadı: server/app.js' };
         }
 
         try {
             const { spawn } = await import('child_process');
-            const child = spawn(gatewayCmd, [], {
+            const child = spawn('node', [serverPath], {
                 detached: true,
                 stdio: 'ignore',
-                shell: true
+                shell: true,
+                cwd: process.cwd(),
+                env: { ...process.env, PORT: '3001' } // Ensure default port
             });
+
             child.unref();
             return { success: true };
         } catch (e) {
             return { success: false, error: e.message };
         }
+    }
+
+    /**
+     * Tüm sistemi başlat (Gateway + Server)
+     */
+    async startFullStack() {
+        // 1. Start Gateway
+        const gwResult = await this.start();
+
+        // 2. Wait for Gateway to initialize (approx 3s)
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // 3. Start Server
+        const serverResult = await this.startServer();
+
+        return {
+            success: gwResult.success && serverResult.success,
+            gateway: gwResult,
+            server: serverResult
+        };
     }
 
     /**

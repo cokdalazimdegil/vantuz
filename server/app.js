@@ -134,6 +134,100 @@ app.get('/api/doctor', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 9. WEBHOOKS - Platform Event Receivers
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.post('/api/webhooks/:platform', async (req, res) => {
+    const { platform } = req.params;
+    const secret = req.headers['x-webhook-secret'] || '';
+    const expectedSecret = process.env.WEBHOOK_SECRET || '';
+
+    if (expectedSecret && secret !== expectedSecret) {
+        log('WARN', `Webhook rejected: invalid secret`, { platform });
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const event = req.body;
+    log('INFO', `Webhook received from ${platform}`, {
+        type: event.type || event.eventType || 'unknown'
+    });
+
+    try {
+        const instance = await initEngine();
+        const eventType = (event.type || event.eventType || '').toLowerCase();
+
+        if (eventType.includes('order') || eventType.includes('siparis')) {
+            await instance.chat(`📦 [${platform.toUpperCase()}] Yeni sipariş olayı: ${eventType}`);
+        } else if (eventType.includes('stock') || eventType.includes('stok')) {
+            await instance.chat(`📊 [${platform.toUpperCase()}] Stok olayı: ${eventType}`);
+        } else if (eventType.includes('return') || eventType.includes('iade')) {
+            await instance.chat(`🔄 [${platform.toUpperCase()}] İade talebi alındı`);
+        }
+
+        if (instance.memory) {
+            instance.memory.remember(`${platform}: ${eventType}`, 'webhook');
+        }
+
+        res.json({ received: true, platform, eventType });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 10. VISION API
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.post('/api/vision/analyze', async (req, res) => {
+    const { image, checkDamage } = req.body;
+    if (!image) return res.status(400).json({ error: 'image parametresi gerekli' });
+
+    try {
+        const { analyzeProductImage, checkReturnDamage } = await import('../core/vision-service.js');
+        const instance = await initEngine();
+        const aiConfig = {
+            apiKey: instance.env?.OPENAI_API_KEY || instance.env?.GEMINI_API_KEY,
+            model: 'gpt-4o'
+        };
+
+        const result = checkDamage
+            ? await checkReturnDamage(image, aiConfig)
+            : await analyzeProductImage(image, aiConfig);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 11. QUEUE & MEMORY API
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.get('/api/queue', async (req, res) => {
+    const instance = await initEngine();
+    res.json(instance.queue ? instance.queue.getStatus() : { error: 'Queue not initialized' });
+});
+
+app.get('/api/memory', async (req, res) => {
+    const instance = await initEngine();
+    if (!instance.memory) return res.json({ error: 'Memory not initialized' });
+    res.json({
+        factsCount: instance.memory.facts.length,
+        strategiesCount: instance.memory.strategies.length,
+        recentFacts: instance.memory.getRecentFacts(10),
+        strategies: instance.memory.getStrategies()
+    });
+});
+
+app.post('/api/memory/remember', async (req, res) => {
+    const { fact, category } = req.body;
+    if (!fact) return res.status(400).json({ error: 'fact gerekli' });
+    const instance = await initEngine();
+    if (!instance.memory) return res.json({ error: 'Memory not initialized' });
+    res.json(instance.memory.remember(fact, category || 'general'));
+});
+
 // Frontend Serve
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not Found' });

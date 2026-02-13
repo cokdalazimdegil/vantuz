@@ -1,44 +1,80 @@
-# 🐙 Vantuz AI
+# 🐙 Vantuz OS
 
-**Yapay Zeka Destekli E-Ticaret Yönetim Platformu**
+**Yeni Nesil E-Ticaret İşletim Sistemi**
 
-7 Türk pazaryerini tek platformdan yönetin: Trendyol, Hepsiburada, N11, Amazon, Çiçeksepeti, PTTavm, Pazarama
+Vantuz, sıradan bir entegrasyon aracı değil; **öğrenen, gören ve sizin adınıza düşünen** bir yapay zeka işletim sistemidir.
 
-## Kurulum
+## 🚀 Temel Yetenekler
+
+### 🧠 Kalıcı Hafıza & Kimlik (Brain)
+Vantuz artık unutmuyor. Sizin stratejilerinizi öğrenir ve uygular.
+- **Persistent Memory:** Konuşulanları, alınan kararları ve verileri diske kaydeder. Restart atsanız bile hatırlar.
+- **Marka Ruhu (`BRAND.md`):** "Kar marjım %15'in altına düşmesin", "Müşteriye senli benli konuşma" gibi kurallarınızı anayasası kabul eder.
+
+### 👁️ Vision Intelligence
+Sadece metin değil, görsellerle de çalışır.
+- **Ürün Analizi:** Fotoğraftan ürün özelliklerini, materyalini ve tahmini fiyatını çıkarır.
+- **Hasar Kontrolü:** İade gelen ürünün fotoğrafına bakıp "Hasarlı" veya "Yeniden Satılabilir" kararı verir.
+- **Depo Gözü:** Depo kameralarına bağlanıp stok sayımı yapabilir.
+
+### 🛡️ Critical Lane (Güvenli Şerit)
+Hata yapma lüksü olmayan işlemler için özel koruma.
+- **Serial Queue:** Aynı anda 100 fiyat güncelleme emri gelse bile, Vantuz bunları tek tek, sakince ve hatasız işler.
+- **Dry-Run:** Kritik komutlar önce simülasyon modunda çalıştırılır, onaylanırsa gerçeğe dönüşür.
+
+### 🔌 Genişletilebilir Uydu Modülleri (Nodes)
+Vantuz sadece bilgisayarınızda değil, deponuzda da yaşar.
+- **Warehouse Node:** Depo terminaline kurulan ufak bir modülle barkod okuma ve kamera entegrasyonu sağlar.
+- **Webhooks:** Trendyol/Hepsiburada'dan gelen "Yeni Sipariş" bildirimini anında yakalar.
+
+---
+
+## 📦 Kurulum
 
 ```bash
-npm install vantuz
+# Vantuz'u global olarak kurun
+npm install -g vantuz
+
+# Yapılandırma sihirbazını başlatın
+vantuz config
 ```
 
-## Hızlı Başlangıç
+## 🎮 Kullanım
+
+### Terminal Arayüzü (TUI)
+Vantuz ile sohbet ederek şirketinizi yönetin.
 
 ```bash
-# Yapılandırma
-npx vantuz config
-
-# Başlat
-npx vantuz tui
+vantuz tui
 ```
 
-## Özellikler
+**Örnek Komutlar:**
+- "Trendyol'daki tüm kılıfların fiyatını %5 artır ama kar marjını koru."
+- "Şu ürünün fotoğrafını analiz et ve Amazon Almanca açıklamasını yaz."
+- "Son 1 saatte gelen iadelerin hasar durumunu raporla."
 
-- 🏪 **7 Pazaryeri** - Tek komutla tüm platformları yönet
-- 🤖 **Akıllı Fiyatlama** - Rakip takibi ve otomatik fiyat optimizasyonu
-- 📊 **Hızlı Raporlar** - Anlık satış ve stok özeti
-- ⏰ **Otomasyon** - Zamanlanmış görevler ve uyarılar
-- 🧠 **Türkçe NL** - Doğal dil komut desteği
-
-## Komutlar
+### Depo Modülü Kurulumu (Warehouse Node)
 
 ```bash
-npx vantuz tui       # Sohbet modu
-npx vantuz config    # Ayarlar
-npx vantuz status    # Durum kontrolü
+# Depo bilgisayarında:
+node nodes/warehouse.js
 ```
 
-## Lisans
+---
+
+## 🏗️ Mimari
+
+- **Core:** Node.js + Express
+- **Memory:** JSON File Persistence + Vector Search
+- **AI:** OpenAI GPT-4o / Google Gemini
+- **Queue:** Serial Promise Queue
+- **Gateway:** WebSocket Bridge
+
+---
+
+## 📄 Lisans
 
 Ticari yazılım. Kullanım için lisans anahtarı gereklidir.
-
-📧 nuricanavsar2000@gmail.com  
-🌐 https://nuricanavsar.com
+Yapımcı: **Nuri Can Avşar**
+İletişim: nuricanavsar2000@gmail.com
+Web: https://nuricanavsar.com

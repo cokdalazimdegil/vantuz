@@ -111,7 +111,7 @@ function saveOpenclawConfig(configPath, config) {
 }
 
 function printHeader() {
-    const version = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url))).version;
+    const version = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf-8')).version;
     console.log(c('cyan', `
     ██╗   ██╗ █████╗ ███╗   ██╗████████╗██╗   ██╗███████╗
     ██║   ██║██╔══██╗████╗  ██║╚══██╔══╝██║   ██║╚══███╔╝
@@ -121,7 +121,7 @@ function printHeader() {
       ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚══════╝
     `));
     console.log(c('magenta', `    Enterprise E-Commerce Management System v${version}`));
-    console.log(c('dim', '    Powered by Vantuz Gateway'));
+    console.log(c('dim', '    Powered by nca'));
     console.log(c('dim', '    ----------------------------------------------------------\n'));
 }
 
