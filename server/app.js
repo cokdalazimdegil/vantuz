@@ -228,6 +228,25 @@ app.post('/api/memory/remember', async (req, res) => {
     res.json(instance.memory.remember(fact, category || 'general'));
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 12. SYSTEM HEALTH DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.get('/api/dashboard', async (req, res) => {
+    try {
+        const { getDashboard } = await import('../core/dashboard.js');
+        const dash = getDashboard();
+        const format = req.query.format;
+        if (format === 'text') {
+            res.type('text/plain').send(dash.getSummary());
+        } else {
+            res.json(dash.getHealth());
+        }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Frontend Serve
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not Found' });
