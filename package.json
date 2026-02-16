@@ -1,0 +1,48 @@
+{
+  "name": "vantuz",
+  "version": "1.0.0",
+  "description": "Yapay Zeka Destekli Yeni Nesil E-Ticaret Yönetim Platformu (CLI)",
+  "main": "index.js",
+  "bin": {
+    "vantuz": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ecommerce",
+    "trendyol",
+    "hepsiburada",
+    "amazon",
+    "n11",
+    "marketplace",
+    "ai",
+    "cli"
+  ],
+  "author": "Nuri Can Avşar <nuricanavsar2000@gmail.com>",
+  "license": "Commercial",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "boxen": "^5.1.2",
+    "chalk": "^4.1.2",
+    "conf": "^10.2.0",
+    "console-clear": "^1.1.1",
+    "dotenv": "^16.0.0",
+    "figlet": "^1.5.0",
+    "inquirer": "^8.2.0",
+    "ora": "^5.4.1",
+    "pkg": "^5.8.1",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7",
+    "table": "^6.8.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
