@@ -1,0 +1,16 @@
+# Yönetici Dosyaları
+# Bu klasördeki dosyalar DAĞITIMa dahil edilmemelidir!
+
+admin/
+licenses.txt
+licenses.json
+generate-licenses.js
+
+# Diğer hassas dosyalar
+.env
+*.log
+node_modules/
+
+
+#Ignore cursor AI rules
+.cursor\rules\codacy.mdc

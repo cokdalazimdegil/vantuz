@@ -1,0 +1,40 @@
+{
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "agents": {
+    "defaults": {
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      },
+      "compaction": {
+        "mode": "safeguard"
+      }
+    }
+  },
+  "gateway": {
+    "auth": {
+      "mode": "token",
+      "token": "e432e1210dcfb65a16122ce44ccaabeb6fefac299759b841"
+    }
+  },
+  "wizard": {
+    "lastRunAt": "2026-02-10T09:32:30.166Z",
+    "lastRunVersion": "2026.2.9",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "local"
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.2.9",
+    "lastTouchedAt": "2026-02-10T09:32:30.181Z"
+  },
+  "channels": {
+    "whatsapp": {
+      "dmPolicy": "allowlist",
+      "allowFrom": [
+        "+905462608103"
+      ]
+    }
+  }
+}

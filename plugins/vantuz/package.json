@@ -1,0 +1,21 @@
+{
+    "name": "@vantuz/plugin",
+    "version": "2.0.0",
+    "description": "Vantuz AI E-Commerce Plugin for Vantuz Gateway",
+    "type": "module",
+    "main": "index.js",
+    "exports": {
+        ".": "./index.js"
+    },
+    "openclaw": {
+        "id": "vantuz",
+        "name": "Vantuz AI",
+        "description": "E-ticaret yönetim araçları: repricer, vision, sentiment, crossborder",
+        "version": "2.0.0"
+    },
+    "dependencies": {
+        "axios": "^1.6.0",
+        "sequelize": "^6.37.7",
+        "sqlite3": "^5.1.7"
+    }
+}

@@ -1,0 +1,40 @@
+# Yönetici Dosyaları - YAYINLANMAYACAK
+admin/
+licenses.txt
+licenses.json
+generate-licenses.js
+
+# Geliştirme
+.env
+.env.*
+*.log
+node_modules/
+.git/
+.gitignore
+.openclaw/
+.cursor/
+.windsurf/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test
+test/
+tests/
+__tests__/
+coverage/
+
+# Docs (opsiyonel)
+docs/
+*.md
+!README.md
+
+# Workspace (iç kullanım)
+workspace/
+
+# Geliştirici araçları
+.eslintrc*
+.prettierrc*

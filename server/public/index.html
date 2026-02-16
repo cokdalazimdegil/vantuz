@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vantuz AI Gateway Dashboard</title>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #09090b;
+            --bg-card: #18181b;
+            --bg-hover: #27272a;
+            --border: #3f3f46;
+            --text-main: #fafafa;
+            --text-muted: #a1a1aa;
+            --primary: #3b82f6;
+            /* Blue-500 */
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background-color: rgba(9, 9, 11, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .brand-icon {
+            font-size: 1.5rem;
+        }
+
+        .brand span {
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gateway-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-card);
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.active {
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .status-indicator.error {
+            background-color: var(--error);
+            box-shadow: 0 0 8px var(--error);
+        }
+
+        /* Main Layout */
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 2rem;
+        }
+
+        /* Sidebar / Stats */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .stat-title {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .stat-detail {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        /* Dashboard Content */
+        .content {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Grid for Nodes/Platforms */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .node-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .node-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .node-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .node-type {
+            font-size: 0.75rem;
+            background: #27272a;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .node-status {
+            font-size: 0.85rem;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .node-status.offline {
+            color: var(--text-muted);
+        }
+
+        .node-status.error {
+            color: var(--error);
+        }
+
+        /* Logs Console */
+        .console-container {
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 400px;
+        }
+
+        .console-header {
+            background: #181818;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .console-body {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #d4d4d4;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .log-time {
+            color: #6b7280;
+            margin-right: 8px;
+            font-size: 0.75rem;
+        }
+
+        .log-info {
+            color: #60a5fa;
+        }
+
+        .log-warn {
+            color: #f59e0b;
+        }
+
+        .log-error {
+            color: #ef4444;
+        }
+
+        .log-debug {
+            color: #71717a;
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .stat-card {
+                flex: 1;
+                min-width: 200px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="brand">
+            <div class="brand-icon">🐙</div>
+            <div>Vantuz <span>Gateway Dashboard</span></div>
+        </div>
+        <div class="gateway-status">
+            <div id="gw-indicator" class="status-indicator"></div>
+            <span id="gw-text">Bağlanıyor...</span>
+        </div>
+    </header>
+
+    <main>
+        <aside class="sidebar">
+            <div class="stat-card">
+                <div class="stat-title">Bağlı Platformlar</div>
+                <div class="stat-value" id="platform-count">0</div>
+                <div class="stat-detail">
+                    <span class="status-indicator active" style="width:6px; height:6px;"></span>
+                    Aktif Entegrasyon
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">AI Modeli</div>
+                <div class="stat-value" id="ai-provider" style="font-size: 1.5rem;">--</div>
+                <div class="stat-detail">Düşünme Modu: Standart</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-title">Sistem Durumu</div>
+                <div class="stat-value" id="system-health" style="color: var(--success)">Normal</div>
+                <div class="stat-detail" id="system-uptime">Gateway v3.2.5</div>
+            </div>
+        </aside>
+
+        <section class="content">
+            <!-- Nodes Section -->
+            <div>
+                <div class="section-header">
+                    <div class="section-title">🔌 Bağlı Node'lar ve Servisler</div>
+                    <button onclick="fetchData()"
+                        style="background:none; border:none; color:var(--primary); cursor:pointer;">Yenile</button>
+                </div>
+                <div class="card-grid" id="nodes-grid">
+                    <!-- Javascript ile dolacak -->
+                    <div class="node-card" style="opacity: 0.5;">
+                        <div class="node-header">
+                            <div class="node-name">Veri Bekleniyor...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Console Section -->
+            <div>
+                <div class="section-header">
+                    <div class="section-title">📟 Canlı Terminal Logları</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">Real-time stream</div>
+                </div>
+                <div class="console-container">
+                    <div class="console-header">
+                        <span>output.log</span>
+                        <span>tail -f</span>
+                    </div>
+                    <div class="console-body" id="console-logs">
+                        <div class="log-entry"><span class="log-time">System</span> Bağlantı kuruluyor...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = '/api';
+
+        async function fetchData() {
+            try {
+                // 1. Doctor verisi (Genel durum)
+                const doctorRes = await fetch(`${API_BASE}/doctor`);
+                const doctor = await doctorRes.json();
+
+                // 2. Status verisi (Detaylar)
+                const statusRes = await fetch(`${API_BASE}/status`);
+                const status = await statusRes.json();
+
+                updateHeader(doctor.gateway);
+                updateStats(status);
+                updateNodes(doctor.platforms, status.channels);
+
+            } catch (e) {
+                console.error("API hatası:", e);
+                document.getElementById('gw-indicator').className = 'status-indicator error';
+                document.getElementById('gw-text').textContent = 'Bağlantı Hatası';
+            }
+        }
+
+        function updateHeader(gateway) {
+            const ind = document.getElementById('gw-indicator');
+            const txt = document.getElementById('gw-text');
+
+            if (gateway.status === 'healthy') {
+                ind.className = 'status-indicator active';
+                txt.textContent = 'Gateway Aktif';
+            } else {
+                ind.className = 'status-indicator error';
+                txt.textContent = 'Gateway Pasif';
+            }
+        }
+
+        function updateStats(status) {
+            document.getElementById('platform-count').textContent = status.connectedCount || 0;
+            document.getElementById('ai-provider').textContent = (status.aiProvider || 'Bilinmiyor').toUpperCase();
+            document.getElementById('system-uptime').textContent = `v${status.version || '3.0'}`;
+        }
+
+        function updateNodes(platforms, channels) {
+            const grid = document.getElementById('nodes-grid');
+            grid.innerHTML = '';
+
+            // 1. Platformlar
+            Object.entries(platforms).forEach(([name, isActive]) => {
+                if (name === 'openclaw-gateway') return;
+                const card = createNodeCard(
+                    name.charAt(0).toUpperCase() + name.slice(1),
+                    'MARKETPLACE',
+                    isActive
+                );
+                grid.appendChild(card);
+            });
+
+            // 2. Kanallar
+            if (channels) {
+                Object.entries(channels).forEach(([name, data]) => {
+                    const card = createNodeCard(
+                        name.toUpperCase(),
+                        'CHANNEL',
+                        data.connected
+                    );
+                    grid.appendChild(card);
+                });
+            }
+
+            // 3. Ekstra Araçlar (Statik şimdilik)
+            ['Repricer', 'Vision AI', 'CrossBorder'].forEach(tool => {
+                const card = createNodeCard(tool, 'TOOL', true);
+                grid.appendChild(card);
+            });
+        }
+
+        function createNodeCard(name, type, active) {
+            const div = document.createElement('div');
+            div.className = 'node-card';
+            div.innerHTML = `
+                <div class="node-header">
+                    <div class="node-name">${name}</div>
+                    <div class="node-type">${type}</div>
+                </div>
+                <div class="node-status ${active ? '' : 'offline'}">
+                    <div class="status-indicator ${active ? 'active' : ''}" style="width:6px; height:6px;"></div>
+                    ${active ? 'Çevrimiçi' : 'Çevrimdışı'}
+                </div>
+            `;
+            return div;
+        }
+
+        async function fetchLogs() {
+            try {
+                const res = await fetch(`${API_BASE}/logs`);
+                const data = await res.json();
+                const container = document.getElementById('console-logs');
+
+                if (data.logs) {
+                    const logHtml = data.logs.split('\\n').filter(l => l.trim()).map(line => {
+                        let cls = 'log-debug';
+                        if (line.includes('[ERROR]')) cls = 'log-error';
+                        else if (line.includes('[WARN]')) cls = 'log-warn';
+                        else if (line.includes('[INFO]')) cls = 'log-info';
+
+                        // Parse timestamp if exists [2024...]
+                        const timeMatch = line.match(/^\[(.*?)\]/);
+                        const time = timeMatch ? timeMatch[1].split('T')[1]?.split('.')[0] || timeMatch[1] : 'NOW';
+                        const msg = line.replace(/^\[.*?\]/, '').trim();
+
+                        return `<div class="log-entry ${cls}">
+                            <span class="log-time">${time}</span>
+                            ${msg}
+                        </div>`;
+                    }).join('');
+
+                    container.innerHTML = logHtml;
+                    container.scrollTop = container.scrollHeight;
+                }
+            } catch (e) { }
+        }
+
+        // Loop
+        fetchData();
+        fetchLogs();
+        setInterval(fetchData, 5000);
+        setInterval(fetchLogs, 2000);
+    </script>
+</body>
+
+</html>
