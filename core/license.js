@@ -3,9 +3,21 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { log } from './ai-provider.js';
+import os from 'os';
 
 const LICENSE_FILE = path.join(os.homedir(), '.vantuz', 'license.json');
-import os from 'os';
+
+// PUBLIC KEY (Müşteriye giden kodun içine gömülü)
+// Sadece senin Private Key'inle imzalanmış veriyi doğrular.
+const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnOaEFB+3s2ouGnbfGlbE
+XO55/RFjoifn2dMNTLt49Ul6CsDES0VaKOQ3+Vmyw8OjYwy773Z/wunX09qCEXDE
+vKHAhxxBa3RQafIbQ/2MIyGTjvxrGelDPzB6yStSwLgShcXtRvAh69aXpFjXCLaW
+svNq+7vcnNdXeZ2c0ipWbnqjpPiFKDe+wZ//gkx70zYXc4WijyLtTQWC6BobhpOA
+isx5uykTzr+LLtMb2n1TpxEopSRbkLQQD4NMskH9Eb1Nx3znl+PjZooUXvr+8eJr
+jQp0PTDTL32LHo2iaWwkKZ38PDc/hfSuu3Kt31t0SIxAwObcCmO2OtiZ7wTKxDow
+RwIDAQAB
+-----END PUBLIC KEY-----`;
 
 export class LicenseManager {
     constructor() {
@@ -26,33 +38,47 @@ export class LicenseManager {
     }
 
     /**
-     * Lisans anahtarını doğrula ve aktif et
+     * Lisans anahtarını doğrula (Signature Verification)
+     * Format: BASE64_PAYLOAD.BASE64_SIGNATURE
      */
-    activate(key) {
-        // Basit simülasyon: VTZ- ile başlayan anahtarları kabul et
-        // Gerçekte burası senin lisans sunucuna (API) istek atmalı.
-        if (!key || !key.startsWith('VTZ-')) {
-            return { success: false, message: 'Geçersiz Lisans Anahtarı formatı.' };
+    activate(licenseString) {
+        try {
+            const [payloadB64, signatureB64] = licenseString.split('.');
+            if (!payloadB64 || !signatureB64) {
+                return { success: false, message: 'Geçersiz lisans formatı.' };
+            }
+
+            // 1. İmzayı Doğrula
+            const verify = crypto.createVerify('SHA256');
+            verify.update(payloadB64);
+            verify.end();
+            const isValid = verify.verify(PUBLIC_KEY, signatureB64, 'base64');
+
+            if (!isValid) {
+                return { success: false, message: '❌ SAHTE LİSANS! İmza doğrulanamadı.' };
+            }
+
+            // 2. İçeriği Çöz
+            const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf-8'));
+            
+            // 3. Son Kullanma Tarihini Kontrol Et (Payload içinden gelir)
+            // Payload: { type: 'ANNUAL', expires: '2027-01-01', user: '...' }
+            
+            this.data = {
+                key: licenseString,
+                activatedAt: new Date().toISOString(),
+                expiresAt: payload.expires,
+                type: payload.type || 'PRO'
+            };
+            this._save();
+            
+            return { success: true, message: `Lisans aktif! Bitiş: ${payload.expires}` };
+
+        } catch (e) {
+            return { success: false, message: 'Lisans işlenirken hata oluştu: ' + e.message };
         }
-
-        const now = new Date();
-        const oneYearLater = new Date(now);
-        oneYearLater.setFullYear(now.getFullYear() + 1);
-
-        this.data = {
-            key: key,
-            activatedAt: now.toISOString(),
-            expiresAt: oneYearLater.toISOString(),
-            type: 'ANNUAL_PRO' // Yıllık Profesyonel Lisans
-        };
-        this._save();
-        log('INFO', 'Lisans başarıyla aktif edildi.', { type: this.data.type });
-        return { success: true, message: 'Yıllık lisans aktif edildi.' };
     }
 
-    /**
-     * Durum kontrolü
-     */
     check() {
         if (!this.data.key || !this.data.expiresAt) {
             return { valid: false, reason: 'NO_LICENSE', message: 'Lisans bulunamadı.' };

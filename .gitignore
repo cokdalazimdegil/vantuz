@@ -14,3 +14,5 @@ node_modules/
 
 #Ignore cursor AI rules
 .cursor\rules\codacy.mdc
+private.pem
+admin-keygen.js
