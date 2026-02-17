@@ -31,6 +31,7 @@ export class Hippocampus {
         this.db = new Sequelize({
             dialect: 'sqlite',
             storage: dbPath,
+            dialectModule: require('better-sqlite3'),
             logging: false
         });
 

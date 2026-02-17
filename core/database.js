@@ -8,6 +8,7 @@ const dbPath = path.join(process.cwd(), 'vantuz.sqlite');
 const sequelize = new Sequelize({
     dialect: 'sqlite',
     storage: dbPath,
+    dialectModule: require('better-sqlite3'),
     logging: false // Konsolu kirletmesin
 });
 

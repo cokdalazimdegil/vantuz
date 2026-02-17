@@ -13,6 +13,7 @@ const licenseManager = require('./core/license-manager');
 
 // ... (Diğer importlar aynı) ...
 const productManager = require('./core/product-manager');
+const brandAnalyst = require('./core/brand-analyst');
 const platforms = {
     trendyol: require('./platforms/trendyol')
 };
@@ -33,7 +34,7 @@ async function main() {
 
     // 1. Karşılama ve İlk Kurulum Kontrolü
     const isFirstRun = !config.get('installed');
-    
+
     if (isFirstRun) {
         await welcomeScreen();
     }
@@ -44,7 +45,7 @@ async function main() {
 
     if (!licenseStatus.valid) {
         if (licenseKey) console.log(chalk.red(`⚠️  Lisans Hatası: ${licenseStatus.reason}`));
-        
+
         console.log(boxen(chalk.white('🔒 VANTUZ Lisans Aktivasyonu\nDevam etmek için satıcınızdan aldığınız anahtarı girin.'), { padding: 1, borderColor: 'cyan', borderStyle: 'classic' }));
         await activateLicense();
     } else {
@@ -69,7 +70,7 @@ async function main() {
     while (true) {
         printHeader();
         await showDashboard(licenseStatus.data);
-        
+
         const { action } = await inquirer.prompt([
             {
                 type: 'list',
@@ -79,6 +80,7 @@ async function main() {
                     { name: '📦 Sipariş Yönetimi', value: 'orders' },
                     { name: '🛍️  Ürün & Stok (Vision AI)', value: 'products' },
                     { name: '🧠 Pazar Analizi', value: 'ai' },
+                    { name: '➕ Mağaza Ekle', value: 'add_store' },
                     { name: '⚙️  Ayarlar', value: 'settings' },
                     { name: '🚪 Çıkış', value: 'exit' }
                 ]
@@ -94,16 +96,16 @@ async function welcomeScreen() {
     clear();
     console.log(chalk.cyan(figlet.textSync('Merhaba!', { horizontalLayout: 'full' })));
     console.log(boxen(chalk.white(`
-VANTUZ'a Hoşgeldiniz.
+    VANTUZ'a Hoşgeldiniz.
 
-Bu yazılım, e-ticaret operasyonlarınızı yapay zeka ile yönetmenizi sağlar.
-Kuruluma başlamadan önce lütfen şunları hazırlayın:
+    Bu yazılım, e-ticaret operasyonlarınızı yapay zeka ile yönetmenizi sağlar.
+    Kuruluma başlamadan önce lütfen şunları hazırlayın:
 
-1. Lisans Anahtarınız
-2. Pazaryeri API Bilgileriniz (Trendyol, Hepsiburada vb.)
-3. (Opsiyonel) OpenAI API Anahtarı - Vision özelliği için
+    1. Lisans Anahtarınız
+    2. Pazaryeri API Bilgileriniz (Trendyol, Hepsiburada vb.)
+    3. (Opsiyonel) OpenAI API Anahtarı - Vision özelliği için
 
-Başlamaya hazır mısınız?
+    Başlamaya hazır mısınız?
     `), { padding: 1, borderStyle: 'double', borderColor: 'green' }));
 
     const { ready } = await inquirer.prompt([{ type: 'confirm', name: 'ready', message: 'Kuruluma Başla', default: true }]);
@@ -118,9 +120,9 @@ async function activateLicense() {
     const { key } = await inquirer.prompt([{ type: 'password', name: 'key', message: 'Lisans Anahtarı:', mask: '*' }]);
     const spinner = ora('Anahtar doğrulanıyor...').start();
     await new Promise(r => setTimeout(r, 1500)); // Dramatik bekleme
-    
+
     const status = licenseManager.verifyLicense(key);
-    
+
     if (status.valid) {
         spinner.succeed(`Lisans Aktif: ${status.data.customer}`);
         config.set('licenseKey', key);
@@ -138,27 +140,67 @@ async function activateLicense() {
 async function setupWizard() {
     console.log(chalk.bold('\n🛒 Mağaza Bağlantı Sihirbazı\n'));
     const { storeName } = await inquirer.prompt([{ type: 'input', name: 'storeName', message: 'Mağaza Adı:' }]);
-    
-    // Platform seçimi ve API girişi buraya gelecek (önceki koddan)
-    // ...
-    
-    // Demo için sadece Trendyol ekleyelim
-    console.log(chalk.cyan('\n👉 Trendyol Entegrasyonu:'));
-    const creds = await inquirer.prompt([
-        { type: 'password', name: 'supplierId', message: 'Supplier ID:', mask: '*' },
-        { type: 'password', name: 'apiKey', message: 'API Key:', mask: '*' },
-        { type: 'password', name: 'apiSecret', message: 'API Secret:', mask: '*' }
+
+    const { platform } = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'platform',
+            message: 'Pazaryeri Seçin:',
+            choices: [
+                { name: '🟧 Trendyol', value: 'trendyol' },
+                { name: '🟧 Hepsiburada', value: 'hepsiburada' },
+                { name: '🐞 N11', value: 'n11' },
+                { name: '📦 Amazon (SP-API)', value: 'amazon' }
+            ]
+        }
     ]);
 
-    await db.Store.create({ name: storeName, platform: 'trendyol', credentials: creds });
-    console.log(chalk.green('\n✅ Mağaza Bağlandı!'));
+    let creds = {};
+
+    if (platform === 'trendyol') {
+        console.log(chalk.cyan('\n👉 Trendyol Entegrasyonu:'));
+        creds = await inquirer.prompt([
+            { type: 'password', name: 'supplierId', message: 'Supplier ID:', mask: '*' },
+            { type: 'password', name: 'apiKey', message: 'API Key:', mask: '*' },
+            { type: 'password', name: 'apiSecret', message: 'API Secret:', mask: '*' }
+        ]);
+    } else if (platform === 'hepsiburada') {
+        console.log(chalk.cyan('\n👉 Hepsiburada Entegrasyonu:'));
+        creds = await inquirer.prompt([
+            { type: 'input', name: 'merchantId', message: 'Merchant ID:' },
+            { type: 'password', name: 'username', message: 'Username (MP):', mask: '*' },
+            { type: 'password', name: 'password', message: 'Password:', mask: '*' }
+        ]);
+    } else if (platform === 'n11') {
+        console.log(chalk.cyan('\n👉 N11 Entegrasyonu:'));
+        creds = await inquirer.prompt([
+            { type: 'password', name: 'apiKey', message: 'API Key:', mask: '*' },
+            { type: 'password', name: 'apiSecret', message: 'API Secret:', mask: '*' }
+        ]);
+    } else if (platform === 'amazon') {
+        console.log(chalk.cyan('\n👉 Amazon SP-API Entegrasyonu:'));
+        creds = await inquirer.prompt([
+            { type: 'input', name: 'sellerId', message: 'Seller ID:' },
+            { type: 'password', name: 'clientId', message: 'Client ID:', mask: '*' },
+            { type: 'password', name: 'clientSecret', message: 'Client Secret:', mask: '*' },
+            { type: 'password', name: 'refreshToken', message: 'Refresh Token:', mask: '*' },
+            { type: 'list', name: 'region', message: 'Bölge:', choices: ['eu', 'na', 'tr'], default: 'tr' }
+        ]);
+    }
+
+    await db.Store.create({ name: storeName, platform, credentials: creds });
+    console.log(chalk.green(`\n✅ ${storeName} (${platform}) Başarıyla Bağlandı!`));
+
+    // AI Brand Analysis
+    await brandAnalyst.analyzeAndSave(storeName, config);
+
     await new Promise(r => setTimeout(r, 1500));
 }
 
 async function showDashboard(licenseData) {
     const stores = await db.Store.findAll();
     const orders = await db.Order.count();
-    
+
     console.log(chalk.bold(`🏢 Lisans Sahibi: ${chalk.cyan(licenseData.customer)}`));
     console.log(`📦 Aktif Mağazalar: ${stores.length} | Toplam Sipariş: ${orders}`);
     console.log(chalk.grey('----------------------------------------'));
@@ -166,6 +208,7 @@ async function showDashboard(licenseData) {
 
 async function handleAction(action) {
     if (action === 'products') await productManager.manageProducts();
+    if (action === 'add_store') await setupWizard();
     // Diğer aksiyonlar...
 }
 

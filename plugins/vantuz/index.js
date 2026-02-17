@@ -347,6 +347,54 @@ export default function (api) {
         }
     });
 
+    // 👥 Multi-Agent Team Command
+    api.registerCommand({
+        name: 'team',
+        description: 'Yapay Zeka Takımı ile konuş (Milo, Josh, Marketing, Dev)',
+        acceptsArgs: true,
+        handler: async (ctx) => {
+            // Lazy load to avoid circular deps or early init issues
+            const TeamModule = (await import('../../modules/team/index.js')).default;
+            const team = new TeamModule(api);
+            await team.initialize();
+
+            const args = ctx.args ? ctx.args.trim().split(' ') : [];
+            const subCommand = args[0];
+
+            if (!subCommand) {
+                return { text: 'Komutlar: /team chat [agent] [mesaj], /team status, /team broadcast [mesaj]' };
+            }
+
+            if (subCommand === 'chat') {
+                const agentName = args[1];
+                const message = args.slice(2).join(' ');
+                if (!agentName || !message) return { text: 'Kullanım: /team chat [milo|josh|marketing|dev] [mesaj]' };
+
+                const response = await team.chat(agentName, message);
+                return { text: `**@${agentName}**: ${response}` };
+            }
+
+            if (subCommand === 'broadcast') {
+                const message = args.slice(1).join(' ');
+                if (!message) return { text: 'Mesaj yazın.' };
+
+                const results = await team.broadcast(message);
+                let report = '📢 **Takım Yanıtları**\n\n';
+                for (const [name, res] of Object.entries(results)) {
+                    report += `**@${name}**: ${res}\n\n`;
+                }
+                return { text: report };
+            }
+
+            if (subCommand === 'status') {
+                const memory = team.getSharedMemory().getEverything();
+                return { text: `📝 **Takım Durumu**\n\n**Hedefler:**\n${memory.goals}\n\n**Durum:**\n${memory.status}` };
+            }
+
+            return { text: 'Geçersiz komut. Kullanılabilir: chat, broadcast, status' };
+        }
+    });
+
     // ═══════════════════════════════════════════════════════════════════════════
     // ⚙️ SERVICES - Arka plan servisleri
     // ═══════════════════════════════════════════════════════════════════════════

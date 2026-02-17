@@ -40,14 +40,40 @@ Lisans anahtarı edinmek için satış temsilcinizle iletişime geçin.
 *   **Pro:** 5 Mağaza, AI Vision
 *   **Enterprise:** Sınırsız Mağaza, Özel Entegrasyonlar
 
+## 🤖 Yapay Zeka Takımı (Multi-Agent Team)
+
+Vantuz, arkaplanda çalışan ve birbirleriyle iletişim kurabilen özelleşmiş yapay zeka ajanlarından oluşan bir takıma sahiptir.
+
+### Takım Üyeleri
+1.  **Milo (@milo)**: Strateji Lideri. Takımı yönetir, hedefleri belirler.
+2.  **Josh (@josh)**: İş Analisti. Kar marjlarını, ciroyu ve rakipleri takip eder.
+3.  **Pazarlama (@marketing)**: Yaratıcı Ajan. Sosyal medya içerikleri ve SEO fikirleri üretir.
+4.  **Yazılım (@dev)**: Teknik Uzman. Sistem sağlığını ve hataları kontrol eder.
+
+### Nasıl Kullanılır?
+Terminal üzerinden `/team` komutuyla takıma erişebilirsiniz:
+
+```bash
+# Milo ile strateji konuşmak için:
+vantuz team chat milo "Bu hafta ciroyu artırmak için ne yapalım?"
+
+# Tüm takıma duyuru yapmak için:
+vantuz team broadcast "Arkadaşlar, yeni iPhone kılıfları geldi!"
+
+# Takım durumunu görmek için:
+vantuz team status
+```
+
+Bu ajanlar `workspace/team/` klasöründeki dosyalar üzerinden birbirleriyle haberleşir ve projeyi yönetir.
+
 ## 🛠️ Desteklenen Platformlar
 
 | Platform | Durum | Özellikler |
 |----------|-------|------------|
-| **Trendyol** | ✅ Aktif | Sipariş, Stok, Ürün Yükleme |
-| **Hepsiburada**| 🚧 Beta | Sipariş Listeleme |
-| **Amazon** | 🚧 Geliştiriliyor | - |
-| **N11** | 🚧 Planlandı | - |
+| **Trendyol** | ✅ Aktif | Sipariş, Stok, Ürün Yükleme, Vision AI |
+| **Hepsiburada**| ✅ Aktif | Sipariş, Stok, Fiyat Yönetimi |
+| **Amazon** | ✅ Aktif | SP-API, Global Satış (Cross-Border) |
+| **N11** | ✅ Aktif | Sipariş, Ürün, Stok Takibi |
 
 ---
 **Geliştirici:** Nuri Can Avşar
