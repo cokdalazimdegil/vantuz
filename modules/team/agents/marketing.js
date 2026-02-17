@@ -1,6 +1,6 @@
 // modules/team/agents/marketing.js
 import { BaseAgent } from './base.js';
-import { sentimentTool } from '../../plugins/vantuz/tools/sentiment.js';
+import { sentimentTool } from '../../../plugins/vantuz/tools/sentiment.js';
 
 export class MarketingAgent extends BaseAgent {
     constructor(api) {

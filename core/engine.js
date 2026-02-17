@@ -24,6 +24,9 @@ import { executeTool } from './agent.js';
 import { getCriticalQueue } from './queue.js';
 import { getMemory } from './memory.js';
 
+// Multi-Agent Team
+import TeamModule from '../modules/team/index.js';
+
 // Tools
 import { repricerTool } from '../plugins/vantuz/tools/repricer.js';
 import { visionTool } from '../plugins/vantuz/tools/vision.js';
@@ -91,6 +94,7 @@ export class VantuzEngine {
         this.eiaMonitor = null; // New property
         this.automation = null;
         this.bridge = null;
+        this.team = null; // Multi-Agent Team
 
         // Tool Registry
         this.tools = {
@@ -147,6 +151,14 @@ export class VantuzEngine {
         // Initialize and start EIA Monitor
         this.eiaMonitor = getEIAMonitor(this.config, this.env);
         await this.eiaMonitor.initMonitoringTasks(); // New line
+
+        // Multi-Agent Team
+        try {
+            this.team = new TeamModule(this);
+            await this.team.initialize();
+        } catch (e) {
+            log('WARN', 'Team module başlatılamadı', { error: e.message });
+        }
 
         // Automation manager
         this.automation = new AutomationManager(this);

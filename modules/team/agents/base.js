@@ -1,7 +1,7 @@
 // modules/team/agents/base.js
 import fs from 'fs';
 import path from 'path';
-import { chat, log } from '../../core/ai-provider.js';
+import { chat, log } from '../../../core/ai-provider.js';
 import sharedMemory from '../shared-memory.js';
 
 export class BaseAgent {
@@ -61,8 +61,8 @@ ${shared.decisions}
 1. SOUL.md ve Rolüne uygun hareket et.
 2. Önemli bir karar alırsan, DECISIONS.md dosyasını güncellemeyi talep et.
 3. Eğer başka bir ajanın uzmanlığına ihtiyacın varsa, yanıtında şu formatı kullan:
-   `[DELEGATE: AjanIsmi Soru veya Görev]`
-   Örnek: `[DELEGATE: Josh iPhone kılıflarının kar marjını kontrol et]`
+   \`[DELEGATE: AjanIsmi Soru veya Görev]\`
+   Örnek: \`[DELEGATE: Josh iPhone kılıflarının kar marjını kontrol et]\`
 4. Kısa ve öz ol.`;
     }
 

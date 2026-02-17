@@ -96,6 +96,13 @@ export const PROVIDER_CONFIG = {
         config_description: 'Fast',
         config_icon: '🔵',
         envKey: 'DEEPSEEK_API_KEY'
+    },
+    gemini_cli: {
+        url: 'local',
+        config_label: 'Gemini CLI',
+        config_description: 'Yerel CLI',
+        config_icon: '💻',
+        envKey: 'GEMINI_CLI_KEY' // Not really used, but keeps structure consistent
     }
 };
 
@@ -248,6 +255,36 @@ export async function chat(message, config, env) {
     }
 
     try {
+        if (provider === 'gemini_cli') {
+            const { exec } = await import('child_process');
+            const { promisify } = await import('util');
+            const execAsync = promisify(exec);
+            
+            // Construct command with context
+            // Note: gemini cli might not support system prompts directly in args easily, 
+            // so we'll prepend it to the message or use a temp file if needed.
+            // For simplicity, we'll try direct argument.
+            const prompt = `System: ${fullSystemPrompt}\n\nUser: ${message}`;
+            // Escaping might be tricky, let's keep it simple for now or write to file
+            const tmpFile = path.join(os.tmpdir(), `vantuz_prompt_${Date.now()}.txt`);
+            fs.writeFileSync(tmpFile, prompt);
+            
+            // Assuming 'gemini' command takes a file or prompt. 
+            // If it takes prompt as arg: gemini "prompt"
+            // If it supports file input: gemini < file
+            // Let's try piping: cat file | gemini
+            
+            // Note: The user mentioned "gemini --help" hung, so we must be careful.
+            // But they specifically requested gemini_cli support.
+            
+            const { stdout, stderr } = await execAsync(`cat "${tmpFile}" | gemini`, { timeout: 30000 });
+            
+            fs.unlinkSync(tmpFile);
+            
+            if (stderr && !stdout) throw new Error(stderr);
+            return stdout.trim();
+        }
+
         const apiKey = env[`${provider.toUpperCase()}_API_KEY`];
         return await _makeApiRequest(provider, providerConfig, message, apiKey, fullSystemPrompt);
     } catch (error) {

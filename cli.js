@@ -521,6 +521,75 @@ async function runChannels(args) {
     }
 }
 
+async function runTeam(args) {
+    const sub = args[1]?.toLowerCase();
+    const engine = await getEngine();
+    
+    if (!engine.initialized) {
+        await showSpinner('AI Takımı hazırlanıyor', 500);
+        await engine.initialize();
+    }
+
+    if (!engine.team) {
+         console.log(c('red', 'Multi-Agent Team modülü aktif değil.'));
+         return;
+    }
+
+    if (!sub || sub === 'status') {
+        printHeader();
+        console.log(c('yellow', '── Yapay Zeka Takımı ──\n'));
+        const agents = engine.team.agents;
+        
+        if (Object.keys(agents).length === 0) {
+             console.log(c('dim', '  Henüz ajan yüklenmedi.'));
+        } else {
+            for (const [name, agent] of Object.entries(agents)) {
+                 console.log(`  ${c('green', '●')} ${c('bold', agent.displayName)}: ${c('dim', agent.role)}`);
+            }
+        }
+        console.log('');
+        console.log(c('dim', '  Komutlar:'));
+        console.log(c('dim', '    vantuz team chat <isim> "mesaj"'));
+        console.log(c('dim', '    vantuz team broadcast "duyuru"'));
+        console.log('');
+        return;
+    }
+
+    if (sub === 'chat') {
+        const agentName = args[2];
+        const message = args.slice(3).join(' ');
+        if (!agentName || !message) {
+             console.log(c('red', 'Kullanım: vantuz team chat <agent> <mesaj>'));
+             return;
+        }
+        console.log(c('dim', `${agentName} düşünüyor...`));
+        try {
+            const response = await engine.team.chat(agentName, message);
+            console.log(`\n${c('cyan', agentName + ':')} ${response}\n`);
+        } catch (e) {
+            console.log(c('red', `Hata: ${e.message}`));
+        }
+    }
+
+    if (sub === 'broadcast') {
+        const message = args.slice(2).join(' ');
+        if (!message) {
+             console.log(c('red', 'Kullanım: vantuz team broadcast <mesaj>'));
+             return;
+        }
+        console.log(c('dim', 'Tüm takıma iletiliyor...'));
+        try {
+            const results = await engine.team.broadcast(message);
+            for (const [name, resp] of Object.entries(results)) {
+                console.log(`\n${c('bold', name.toUpperCase())}: ${resp}`);
+            }
+        } catch (e) {
+            console.log(c('red', `Hata: ${e.message}`));
+        }
+        console.log('');
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════
@@ -566,11 +635,16 @@ async function main() {
             console.log(`Vantuz Gateway: ${gwInfo.connected ? c('green', '● Bağlı') : c('yellow', '○ Bağlı Değil')}`);
             break;
 
+        case 'team':
+            await runTeam(args);
+            break;
+
         default:
             printHeader();
             console.log('Kullanım:\n');
             console.log(`  ${c('cyan', 'vantuz tui')}       - Sohbet arayüzü`);
             console.log(`  ${c('cyan', 'vantuz status')}    - Durum kontrolü`);
+            console.log(`  ${c('cyan', 'vantuz team')}      - Yapay Zeka Takımı`);
             console.log(`  ${c('cyan', 'vantuz gateway')}   - Gateway yönetimi`);
             console.log(`  ${c('cyan', 'vantuz doctor')}    - Sistem sağlık kontrolü`);
             console.log(`  ${c('cyan', 'vantuz channels')}  - İletişim kanalları`);

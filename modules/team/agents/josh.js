@@ -1,7 +1,7 @@
 // modules/team/agents/josh.js
 import { BaseAgent } from './base.js';
-import { repricerTool } from '../../plugins/vantuz/tools/repricer.js';
-import { analyticsTool } from '../../plugins/vantuz/tools/analytics.js';
+import { repricerTool } from '../../../plugins/vantuz/tools/repricer.js';
+import { analyticsTool } from '../../../plugins/vantuz/tools/analytics.js';
 
 export class JoshAgent extends BaseAgent {
     constructor(api) {

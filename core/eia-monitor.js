@@ -2,9 +2,11 @@
 import { getScheduler } from './scheduler.js';
 import { TrendyolScraper } from './scrapers/TrendyolScraper.js'; // Example scraper
 import { getEIABrain } from './eia-brain.js';
-import { getDatabase } from './database.js'; // Import database
+import dbPkg from './database.js'; // CommonJS uyumluluğu için default import
 import { getVectorDB } from './vector-db.js'; // Import vector DB
 import { log } from './ai-provider.js';
+
+const { getDatabase } = dbPkg;
 
 class EIAMonitor {
     constructor(config, env) {

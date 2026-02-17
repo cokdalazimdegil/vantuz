@@ -1,0 +1,3 @@
+# Proje Durumu
+
+Durum: Başlatılıyor...
