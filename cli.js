@@ -12,6 +12,7 @@ import readline from 'readline';
 import { log, getLogs, clearLogs } from './core/ai-provider.js';
 import { getEngine } from './core/engine.js';
 import { getGateway } from './core/gateway.js';
+import { licenseManager } from './core/license.js'; // Lisans yöneticisi
 import { Configurator } from './config.js'; // Import the new Configurator
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -144,6 +145,25 @@ async function showSpinner(text, duration = 1000) {
 async function runTUI() {
     clearScreen();
     printHeader();
+
+    // Lisans Kontrolü
+    const license = licenseManager.check();
+    if (!license.valid) {
+        console.log(c('red', `\n🛑 ERİŞİM ENGELLENDİ: ${license.message}`));
+        console.log(c('yellow', 'Lütfen geçerli bir lisans anahtarı girin.'));
+        
+        const key = await promptInput(c('cyan', 'Lisans Anahtarı (VTZ-XXXX): '));
+        const result = licenseManager.activate(key);
+        
+        if (!result.success) {
+            console.log(c('red', `Hata: ${result.message}`));
+            process.exit(1);
+        }
+        console.log(c('green', `✔ ${result.message}`));
+        await new Promise(r => setTimeout(r, 1000));
+        clearScreen();
+        printHeader();
+    }
 
     await showSpinner('Sistem çekirdeği yükleniyor', 500);
     await showSpinner('Vantuz Gateway kontrol ediliyor', 400);
@@ -629,7 +649,13 @@ async function main() {
 
         case 'status':
             printHeader();
-            console.log(`Lisans Durumu: ${c('green', 'Aktif (Dev Mode)')}`);
+            const lic = licenseManager.getInfo();
+            if (lic.valid) {
+                console.log(`Lisans Durumu: ${c('green', 'Aktif')} (${lic.type})`);
+                console.log(`Kalan Süre:  ${c('yellow', lic.daysLeft + ' Gün')}`);
+            } else {
+                console.log(`Lisans Durumu: ${c('red', 'Pasif/Süresi Dolmuş')}`);
+            }
             const gw = await getGateway();
             const gwInfo = gw.getInfo();
             console.log(`Vantuz Gateway: ${gwInfo.connected ? c('green', '● Bağlı') : c('yellow', '○ Bağlı Değil')}`);
